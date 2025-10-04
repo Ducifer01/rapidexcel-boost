@@ -30,12 +30,9 @@ const Footer = () => {
           </div>
         </div>
 
-        <div className="border-t border-background/20 pt-8 text-center space-y-4">
+        <div className="border-t border-background/20 pt-8 text-center">
           <p className="text-sm text-background/80">
-            © 2024 Planilhas Excel Premium. Todos os direitos reservados.
-          </p>
-          <p className="text-xs text-background/60">
-            Este site não faz parte do site do Facebook ou Facebook Inc. Além disso, este site NÃO é endossado pelo Facebook de forma alguma. FACEBOOK é uma marca comercial da FACEBOOK, Inc.
+            © 2025 PlanilhaExpress. Todos os direitos reservados.
           </p>
         </div>
       </div>

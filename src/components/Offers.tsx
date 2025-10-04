@@ -164,12 +164,12 @@ const Offers = () => {
             <p className="text-lg text-muted-foreground">
               Mais de <strong>6.050 planilhas e dashboards</strong> pelo menor preço!
             </p>
-            <Button 
-              size="lg" 
-              className="bg-gradient-to-r from-accent to-accent/80 hover:opacity-90 text-lg px-12 py-6 shadow-[0_10px_40px_-10px_hsl(var(--accent)/0.5)] hover:shadow-[0_15px_50px_-10px_hsl(var(--accent)/0.6)] transition-all duration-300"
-            >
-              Quero o Combo Completo Agora!
-            </Button>
+              <Button 
+                size="lg" 
+                className="bg-gradient-to-r from-accent to-accent/80 hover:opacity-90 text-lg px-12 py-6 shadow-[0_10px_40px_-10px_hsl(var(--accent)/0.5)] hover:shadow-[0_15px_50px_-10px_hsl(var(--accent)/0.6)] transition-all duration-300 whitespace-normal h-auto leading-tight"
+              >
+                Quero o Combo Completo Agora!
+              </Button>
           </CardContent>
         </Card>
       </div>

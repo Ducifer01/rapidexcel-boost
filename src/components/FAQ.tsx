@@ -69,16 +69,6 @@ const FAQ = () => {
             </AccordionItem>
           ))}
         </Accordion>
-
-        <div className="mt-12 p-8 rounded-2xl bg-gradient-to-br from-primary/10 to-secondary/10 border-2 border-primary/20 text-center">
-          <p className="text-lg font-bold mb-2">Ainda tem dúvidas?</p>
-          <p className="text-muted-foreground mb-4">
-            Nossa equipe está pronta para ajudar você!
-          </p>
-          <p className="text-sm text-muted-foreground">
-            Entre em contato através do chat no canto inferior direito
-          </p>
-        </div>
       </div>
     </section>
   );
