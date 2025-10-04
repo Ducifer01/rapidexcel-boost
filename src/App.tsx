@@ -10,6 +10,8 @@ import Checkout from "./pages/Checkout";
 import Success from "./pages/Success";
 import Pending from "./pages/Pending";
 import Failure from "./pages/Failure";
+import Login from "./pages/Login";
+import Dashboard from "./pages/Dashboard";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -26,6 +28,8 @@ const App = () => (
           <Route path="/success" element={<Success />} />
           <Route path="/pending" element={<Pending />} />
           <Route path="/failure" element={<Failure />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/termos" element={<Terms />} />
           <Route path="/politica" element={<Privacy />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

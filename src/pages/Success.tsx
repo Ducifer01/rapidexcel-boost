@@ -1,10 +1,12 @@
 import { useEffect } from "react";
-import { Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { CheckCircle, Mail, Download } from "lucide-react";
+import { CheckCircle, ArrowRight, Info } from "lucide-react";
 
 const Success = () => {
+  const navigate = useNavigate();
+
   useEffect(() => {
     // Opcional: enviar evento de conversão para analytics
     if (typeof window !== 'undefined' && (window as any).gtag) {
@@ -17,67 +19,63 @@ const Success = () => {
   }, []);
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center px-4 py-12">
-      <Card className="max-w-2xl w-full">
-        <CardContent className="pt-12 pb-8 text-center space-y-6">
-          <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center mx-auto">
-            <CheckCircle className="w-12 h-12 text-primary" />
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50 to-emerald-100 dark:from-green-950 dark:to-emerald-950 p-4">
+      <Card className="max-w-md w-full border-2 border-green-500/20 shadow-2xl">
+        <CardContent className="pt-8 pb-6 text-center">
+          <div className="mb-6 flex justify-center">
+            <div className="p-4 bg-green-100 dark:bg-green-900 rounded-full">
+              <CheckCircle className="w-16 h-16 text-green-600 dark:text-green-400" />
+            </div>
           </div>
           
-          <div className="space-y-2">
-            <h1 className="text-3xl md:text-4xl font-bold">Pagamento Aprovado!</h1>
-            <p className="text-xl text-muted-foreground">
-              Sua compra foi processada com sucesso! 🎉
-            </p>
-          </div>
-
-          <div className="bg-muted/50 rounded-lg p-6 space-y-4">
+          <h1 className="text-3xl font-bold text-green-900 dark:text-green-100 mb-4">
+            Pagamento Aprovado!
+          </h1>
+          
+          <p className="text-green-700 dark:text-green-300 mb-6 text-lg">
+            Seu pagamento foi processado com sucesso! 🎉
+          </p>
+          
+          <div className="bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800 rounded-lg p-4 mb-6">
             <div className="flex items-start gap-3 text-left">
-              <Mail className="w-5 h-5 text-primary mt-0.5 flex-shrink-0" />
+              <Info className="w-5 h-5 text-green-600 dark:text-green-400 mt-0.5 flex-shrink-0" />
               <div>
-                <h3 className="font-bold mb-1">E-mail de Acesso Enviado</h3>
-                <p className="text-sm text-muted-foreground">
-                  Enviamos um e-mail com suas credenciais e link para download. 
-                  Verifique sua caixa de entrada e spam.
+                <p className="text-sm text-green-800 dark:text-green-200 font-semibold mb-2">
+                  Sua conta foi criada automaticamente!
                 </p>
-              </div>
-            </div>
-            
-            <div className="flex items-start gap-3 text-left">
-              <Download className="w-5 h-5 text-primary mt-0.5 flex-shrink-0" />
-              <div>
-                <h3 className="font-bold mb-1">Acesso Imediato</h3>
-                <p className="text-sm text-muted-foreground">
-                  Você já pode acessar todo o conteúdo da sua compra através 
-                  do link enviado por e-mail.
+                <p className="text-sm text-green-700 dark:text-green-300">
+                  Use o <strong>email e senha</strong> que você cadastrou no checkout para fazer login e acessar suas planilhas.
                 </p>
               </div>
             </div>
           </div>
 
-          <div className="space-y-3 pt-4">
+          <div className="space-y-3">
             <Button 
-              size="lg" 
-              className="w-full bg-gradient-to-r from-primary to-primary-glow"
-              asChild
+              onClick={() => navigate("/login")}
+              className="w-full bg-green-600 hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-600 text-white h-12 text-lg"
+              size="lg"
             >
-              <a href="mailto:">Abrir E-mail</a>
+              Fazer Login Agora
+              <ArrowRight className="ml-2 w-5 h-5" />
             </Button>
             
-            <Link to="/">
-              <Button variant="outline" size="lg" className="w-full">
-                Voltar ao Início
-              </Button>
-            </Link>
+            <Button 
+              onClick={() => navigate("/")}
+              variant="outline"
+              className="w-full"
+            >
+              Voltar ao Início
+            </Button>
           </div>
 
-          <p className="text-xs text-muted-foreground">
+          <p className="text-xs text-green-700 dark:text-green-400 mt-6">
             Problemas com o acesso? Entre em contato via Instagram{" "}
             <a 
               href="https://instagram.com/planilhaexpress_ofc" 
               target="_blank" 
               rel="noopener noreferrer"
-              className="text-primary hover:underline"
+              className="text-green-600 dark:text-green-400 hover:underline font-semibold"
             >
               @planilhaexpress_ofc
             </a>

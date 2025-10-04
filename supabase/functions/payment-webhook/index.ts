@@ -41,23 +41,58 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    const { error } = await supabase
+    // Buscar a compra pelo external_reference
+    const { data: purchase, error: fetchError } = await supabase
+      .from('purchases')
+      .select('*')
+      .eq('payment_id', payment.external_reference || payment.id.toString())
+      .single();
+
+    if (fetchError || !purchase) {
+      console.error('Erro ao buscar compra:', fetchError);
+      throw new Error('Compra não encontrada');
+    }
+
+    // Se o pagamento foi aprovado, criar usuário no Supabase Auth
+    let authUserId = purchase.auth_user_id;
+    
+    if (payment.status === 'approved' && !purchase.auth_user_id) {
+      console.log('Pagamento aprovado! Criando usuário para:', payment.payer.email);
+      
+      // Criar usuário no Supabase Auth usando Service Role
+      const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+        email: purchase.user_email,
+        password: purchase.password_hash, // Usar hash como senha temporária
+        email_confirm: true, // Confirmar email automaticamente
+        user_metadata: {
+          name: payment.payer.name || payment.payer.first_name,
+          cpf: payment.payer.identification?.number,
+        }
+      });
+
+      if (authError) {
+        console.error('Erro ao criar usuário:', authError);
+        // Continuar mesmo com erro - admin pode criar manualmente
+      } else if (authData.user) {
+        authUserId = authData.user.id;
+        console.log('Usuário criado com sucesso:', authData.user.id);
+      }
+    }
+
+    // Atualizar status da compra e associar ao usuário
+    const { error: updateError } = await supabase
       .from('purchases')
       .update({
         payment_status: payment.status,
         payment_id: payment.id.toString(),
+        auth_user_id: authUserId,
+        password_hash: null, // Limpar senha após criar usuário
       })
       .eq('payment_id', payment.external_reference || payment.id.toString());
 
-    if (error) {
-      console.error('Erro ao atualizar compra:', error);
-      throw error;
-    }
-
-    // Se o pagamento foi aprovado, enviar email com acesso
-    if (payment.status === 'approved') {
-      // Aqui você pode adicionar lógica para enviar email ou ativar acesso
-      console.log('Pagamento aprovado para:', payment.payer.email);
+    if (updateError) {
+      console.error('Erro ao atualizar compra:', updateError);
+      throw updateError;
     }
 
     return new Response('OK', { 

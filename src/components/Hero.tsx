@@ -1,7 +1,10 @@
 import { Button } from "@/components/ui/button";
-import { ShoppingCart, Check } from "lucide-react";
+import { ShoppingCart, Check, LogIn } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 const Hero = () => {
+  const navigate = useNavigate();
+  
   const scrollToOffer = () => {
     document.getElementById('ofertas')?.scrollIntoView({ behavior: 'smooth' });
   };
@@ -10,6 +13,18 @@ const Hero = () => {
     <section className="relative min-h-[85vh] flex items-center justify-center px-4 py-12 md:py-20 bg-gradient-to-b from-primary/5 to-background overflow-hidden">
       {/* Elementos decorativos de fundo */}
       <div className="absolute inset-0 bg-grid-pattern opacity-[0.02]" />
+      
+      {/* Botão de Área de Membros no canto superior direito */}
+      <div className="absolute top-4 right-4 z-20">
+        <Button
+          onClick={() => navigate('/login')}
+          variant="outline"
+          className="border-primary/30 hover:bg-primary/10 hover:border-primary/50"
+        >
+          <LogIn className="w-4 h-4 mr-2" />
+          Área de Membros
+        </Button>
+      </div>
       
       <div className="container max-w-6xl mx-auto relative z-10">
         <div className="text-center space-y-6 md:space-y-8 animate-fade-in">

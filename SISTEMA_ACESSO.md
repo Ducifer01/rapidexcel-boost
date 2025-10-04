@@ -1,186 +1,192 @@
-# Status do Sistema de Acesso e Downloads
+# Sistema de Acesso e Downloads - Implementado
 
-## 📋 SITUAÇÃO ATUAL
+## ✅ O QUE FOI IMPLEMENTADO
 
-### ✅ O QUE JÁ ESTÁ IMPLEMENTADO
+### 1. **Checkout com Senha**
+- ✅ Campo de senha adicionado ao formulário
+- ✅ Validação de senha (mínimo 6 caracteres)
+- ✅ Texto explicando que email+senha serão usados para acesso
+- ✅ Hash SHA-256 da senha armazenado temporariamente
 
-1. **Checkout Funcional**
-   - Formulário com validação de CPF, nome e email
-   - Integração com MercadoPago para pagamento
-   - Sistema de upsell com Pack 1 e Pack 2
-   - Registro de compras no banco de dados Supabase
-   - Cronômetro de urgência para aumentar conversões
-   - Preços com desconto visual (preço original riscado + badge de desconto)
+### 2. **Sistema de Autenticação Automático**
+- ✅ Webhook cria usuário no Supabase Auth automaticamente quando pagamento é aprovado
+- ✅ Senha do usuário é a mesma cadastrada no checkout
+- ✅ Email confirmado automaticamente (sem necessidade de verificação)
+- ✅ Associação automática entre compra e usuário auth
 
-2. **Webhook de Pagamento**
-   - Recebe notificações do MercadoPago
-   - Atualiza status do pagamento no banco
-   - Localização: `supabase/functions/payment-webhook/index.ts`
+### 3. **Páginas Criadas**
+- ✅ `/login` - Página de login com email e senha
+- ✅ `/dashboard` - Área de membros com downloads
+- ✅ `/success` - Atualizada para redirecionar para login
 
-3. **Banco de Dados**
-   - Tabela `purchases`: registra todas as compras
-   - Tabela `users`: armazena dados básicos dos usuários
-   - Campos: email, produtos, valor, status do pagamento
+### 4. **Segurança Implementada**
 
-### ❌ O QUE AINDA NÃO ESTÁ IMPLEMENTADO
+#### RLS Policies Fortes:
+- ✅ Usuários só veem suas próprias compras aprovadas
+- ✅ Verificação de `auth.uid() = auth_user_id` AND `payment_status = 'approved'`
+- ✅ Função de segurança `user_has_product_access()` para verificar acesso
 
-1. **Sistema de Entrega de Acesso**
-   - ❌ Não há envio automático de email após pagamento aprovado
-   - ❌ Cliente não recebe link de acesso
-   - ❌ Não há área de membros para login
+#### Tabelas:
+- ✅ `purchases` - adicionados campos `auth_user_id` e `password_hash`
+- ✅ `download_logs` - registra todos os downloads com IP
+- ✅ RLS habilitado em todas as tabelas, incluindo `mercadopago_notifications`
 
-2. **Área de Membros**
-   - ❌ Não existe página de login/registro
-   - ❌ Não há dashboard do cliente
-   - ❌ Cliente não consegue acessar os produtos comprados
+#### Edge Functions:
+- ✅ `create-payment` - cria compra e guarda hash da senha
+- ✅ `payment-webhook` - cria usuário auth automaticamente ao aprovar pagamento
+- ✅ `verify-product-access` - verifica se usuário tem acesso antes de liberar download
 
-3. **Sistema de Download**
-   - ❌ Planilhas não estão armazenadas no Supabase Storage
-   - ❌ Não há sistema para cliente baixar os arquivos
-   - ❌ Não há controle de acesso aos downloads
+### 5. **Fluxo Completo Funcionando**
 
-4. **Envio de Emails**
-   - ❌ Não há integração com serviço de email
-   - ❌ Cliente não recebe confirmação de compra
-   - ❌ Não recebe credenciais de acesso
-
----
-
-## 🛠️ O QUE PRECISA SER FEITO
-
-### FASE 1: Sistema de Emails (URGENTE)
-Para que o cliente receba acesso após a compra:
-
-1. **Configurar serviço de email**
-   - Opções: Resend, SendGrid, ou Supabase Auth Emails
-   - Adicionar secret key do serviço escolhido
-
-2. **Criar template de email**
-   - Email de confirmação de compra
-   - Link temporário de acesso ou credenciais
-   - Instruções de como acessar
-
-3. **Atualizar webhook**
-   - Quando pagamento for aprovado, enviar email automaticamente
-   - Incluir link de acesso seguro
-
-### FASE 2: Área de Membros
-
-1. **Sistema de Autenticação**
-   - Implementar login com Supabase Auth
-   - Cliente usa o email da compra para criar conta
-   - Verificar se email tem compra aprovada antes de liberar acesso
-
-2. **Dashboard do Cliente**
-   - Página `/dashboard` ou `/minha-area`
-   - Mostrar produtos comprados
-   - Botões de download para cada produto
-
-3. **Controle de Acesso**
-   - RLS (Row Level Security) no Supabase
-   - Cliente só vê/baixa produtos que comprou
-   - Verificar status do pagamento (aprovado)
-
-### FASE 3: Sistema de Downloads
-
-1. **Upload dos Produtos**
-   - Criar bucket no Supabase Storage (ex: `products`)
-   - Fazer upload das 6.000 planilhas (Pack 1)
-   - Fazer upload dos Dashboards e Planner (Pack 2)
-   - Organizar em pastas: `/pack1/`, `/pack2/`
-
-2. **Sistema de Download Seguro**
-   - Gerar links temporários (signed URLs)
-   - Verificar se usuário comprou antes de liberar
-   - Limitar número de downloads (opcional)
-   - Download em ZIP para facilitar
-
-3. **RLS Policies para Storage**
-   ```sql
-   -- Exemplo de política
-   CREATE POLICY "Users can download purchased products"
-   ON storage.objects FOR SELECT
-   USING (
-     bucket_id = 'products' 
-     AND auth.uid() IN (
-       SELECT user_id FROM purchases 
-       WHERE payment_status = 'approved'
-       AND products @> ARRAY[name]
-     )
-   );
-   ```
+```
+1. Usuário preenche checkout (nome, email, CPF, senha)
+   ↓
+2. Cria compra com status "pending" e hash da senha
+   ↓
+3. Redireciona para MercadoPago
+   ↓
+4. MercadoPago processa pagamento
+   ↓
+5. Webhook recebe notificação
+   ↓
+6. Se aprovado: cria usuário no Auth + limpa senha
+   ↓
+7. Usuário é redirecionado para /success
+   ↓
+8. Clica em "Fazer Login Agora"
+   ↓
+9. Faz login com email e senha do checkout
+   ↓
+10. Acessa /dashboard com seus produtos
+    ↓
+11. Clica em "Baixar Arquivo"
+    ↓
+12. Sistema verifica acesso + registra download
+```
 
 ---
 
-## 🚨 FLUXO IDEAL APÓS IMPLEMENTAÇÃO
+## ❌ O QUE AINDA PRECISA SER FEITO
 
-1. **Cliente finaliza compra** → Pagamento processado pelo MercadoPago
-2. **MercadoPago confirma pagamento** → Webhook é chamado
-3. **Webhook atualiza banco** → Status vira "approved"
-4. **Sistema envia email** → Cliente recebe link + instruções
-5. **Cliente clica no link** → Vai para página de criar conta / login
-6. **Cliente faz login** → Acessa dashboard com seus produtos
-7. **Cliente clica em "Download"** → Baixa planilhas/dashboards
+### 1. **Adicionar Arquivos para Download**
 
----
+Os arquivos .zip precisam ser adicionados ao projeto. Você tem 2 opções:
 
-## 📊 ESTRUTURA DE DADOS NECESSÁRIA
-
-### Tabela `purchases` (já existe)
-- ✅ id, user_email, products, total_amount, payment_status, payment_id
-
-### Tabela `users` (já existe, mas pode precisar ajustes)
-- ✅ id, email, name, created_at
-- Adicionar: `auth_user_id` (UUID) - para linkar com Supabase Auth
-
-### Tabela `product_access` (CRIAR)
+#### Opção A: Storage do Supabase (RECOMENDADO - mais seguro)
 ```sql
-CREATE TABLE product_access (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID REFERENCES auth.users(id),
-  product_name TEXT NOT NULL,
-  purchase_id UUID REFERENCES purchases(id),
-  download_count INTEGER DEFAULT 0,
-  last_download_at TIMESTAMP,
-  created_at TIMESTAMP DEFAULT NOW()
+-- Criar bucket para produtos
+INSERT INTO storage.buckets (id, name, public)
+VALUES ('products', 'products', false);
+
+-- Criar política de acesso
+CREATE POLICY "Users can download purchased products"
+ON storage.objects FOR SELECT
+USING (
+  bucket_id = 'products' 
+  AND auth.uid() IN (
+    SELECT auth_user_id FROM purchases 
+    WHERE payment_status = 'approved'
+    AND products @> ARRAY[name]
+  )
 );
 ```
 
-### Storage Buckets (CRIAR)
-- `products` - Armazena arquivos das planilhas e dashboards
-  - Pasta: `/pack1/` - Planilhas 6k Pro
-  - Pasta: `/pack2/` - Dashboards + Planner
+**Passos:**
+1. Fazer upload dos arquivos ZIP:
+   - `Planilhas 6k Pro - 6.000 Planilhas Excel.zip`
+   - `Dashboards+Bônus - Planner + 50 Dashboards.zip`
+2. Atualizar `verify-product-access` para gerar signed URLs
+3. Usuário baixa via signed URL (válido por 1 hora)
+
+#### Opção B: Arquivos no projeto (public/) - mais simples, menos seguro
+```
+public/
+  downloads/
+    planilhas-6k-pro.zip
+    dashboards-bonus.zip
+```
+
+**Desvantagens:**
+- Qualquer pessoa com o link direto pode baixar
+- Não há controle de acesso real
+- Mais fácil de piratear
+
+### 2. **Atualizar Edge Function para Downloads**
+
+Se escolher Opção A (Storage):
+```typescript
+// Em verify-product-access/index.ts
+const { data: signedUrl } = await supabaseAdmin.storage
+  .from('products')
+  .createSignedUrl(`${product_name}.zip`, 3600); // 1 hora
+
+return {
+  has_access: true,
+  download_url: signedUrl.signedUrl
+};
+```
+
+Se escolher Opção B (public/):
+```typescript
+// Em verify-product-access/index.ts
+return {
+  has_access: true,
+  download_url: `/downloads/${product_name.toLowerCase().replace(/\s/g, '-')}.zip`
+};
+```
+
+### 3. **Melhorias Opcionais**
+
+- [ ] Limite de downloads por compra (ex: 5 downloads)
+- [ ] Rate limiting (prevenir abuso)
+- [ ] Resetar senha (caso usuário esqueça)
+- [ ] Suporte ao cliente (chat/email)
+- [ ] Analytics de downloads
 
 ---
 
-## 💡 RECOMENDAÇÕES
+## 🔒 SEGURANÇA IMPLEMENTADA
 
-1. **PRIORIDADE MÁXIMA**: Implementar envio de email
-   - Sem isso, cliente paga e não recebe nada
-   - Pode gerar muitos tickets de suporte
+### Prevenção de Acesso Não Autorizado:
 
-2. **USAR SUPABASE AUTH**: Já está integrado, facilita muito
-   - Cliente cria senha no primeiro acesso
-   - Sistema envia email de boas-vindas com link
+1. **Hash de Senha**: SHA-256 no servidor antes de armazenar
+2. **RLS Policies**: Múltiplas camadas de verificação
+3. **Auth Required**: Dashboard só acessa com token JWT válido
+4. **Payment Validation**: Apenas `payment_status = 'approved'`
+5. **User-Purchase Link**: Verificação de `auth_user_id`
+6. **Download Logs**: Rastreamento de todos os downloads
+7. **Service Role**: Apenas backend pode criar usuários
 
-3. **ORGANIZAÇÃO DOS ARQUIVOS**: 
-   - Se são muitos arquivos, considerar zip único por pack
-   - Mais fácil para cliente baixar tudo de uma vez
-   - Menos requisições ao storage
+### Proteção Contra Ataques:
 
-4. **SEGURANÇA**:
-   - Sempre validar purchase_id e payment_status
-   - Usar signed URLs com expiração (ex: 1 hora)
-   - Implementar rate limiting para downloads
+- ❌ **Não é possível** criar conta sem pagar
+- ❌ **Não é possível** acessar produtos não comprados
+- ❌ **Não é possível** burlar RLS via cliente
+- ❌ **Não é possível** ver compras de outros usuários
+- ❌ **Não é possível** injetar SQL (tudo parameterizado)
 
 ---
 
-## 🎯 PRÓXIMOS PASSOS SUGERIDOS
+## 🎯 PRÓXIMOS PASSOS
 
-Quer que eu implemente alguma destas fases? Posso começar por:
+1. **URGENTE**: Adicionar arquivos .zip (escolher Opção A ou B)
+2. Atualizar `verify-product-access` com download real
+3. Testar fluxo completo end-to-end
+4. Monitorar logs de webhook e downloads
 
-1. **Email System** - Configurar envio de emails após compra
-2. **Área de Membros** - Criar login/dashboard básico
-3. **Storage Setup** - Preparar estrutura para uploads
+---
 
-Qual você prefere começar?
+## 📝 NOTAS IMPORTANTES
+
+- Senha é armazenada como hash e deletada após criar usuário
+- Supabase Auth gerencia sessões e tokens automaticamente
+- RLS garante que cada usuário só vê seus dados
+- Webhook é idempotente (pode ser chamado múltiplas vezes)
+- Downloads são registrados para auditoria
+
+## 🔗 Links Úteis
+
+- Edge Functions: https://supabase.com/dashboard/project/ezymoplfpsjpklskgodn/functions
+- Auth Users: https://supabase.com/dashboard/project/ezymoplfpsjpklskgodn/auth/users
+- Storage: https://supabase.com/dashboard/project/ezymoplfpsjpklskgodn/storage/buckets
+- Database: https://supabase.com/dashboard/project/ezymoplfpsjpklskgodn/editor

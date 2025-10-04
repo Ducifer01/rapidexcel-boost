@@ -5,3 +5,6 @@ verify_jwt = false
 
 [functions.payment-webhook]
 verify_jwt = false
+
+[functions.verify-product-access]
+verify_jwt = true

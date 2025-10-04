@@ -13,7 +13,7 @@ serve(async (req) => {
   }
 
   try {
-    const { product_ids, payer, back_urls } = await req.json();
+    const { product_ids, payer, back_urls, password } = await req.json();
 
     // VALIDAÇÃO DE SEGURANÇA: Preços são definidos NO SERVIDOR
     // NUNCA confiar em preços vindos do frontend!
@@ -92,12 +92,20 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
+    // Hash da senha usando Web Crypto API do Deno
+    const encoder = new TextEncoder();
+    const data = encoder.encode(password);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    const passwordHash = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+
     await supabase.from('purchases').insert({
       user_email: payer.email,
       products: items.map((item: any) => item.title),
       total_amount: items.reduce((sum: number, item: any) => sum + (item.unit_price * item.quantity), 0),
       payment_status: 'pending',
       payment_id: externalRef,
+      password_hash: passwordHash,
     });
 
     return new Response(

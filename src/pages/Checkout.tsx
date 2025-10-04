@@ -17,13 +17,14 @@ const checkoutSchema = z.object({
   cpf: z.string().trim().refine((val) => validateCPF(val.replace(/\D/g, '')), {
     message: "CPF inválido",
   }),
+  password: z.string().min(6, "Senha deve ter pelo menos 6 caracteres").max(50),
 });
 
 const Checkout = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  const [formData, setFormData] = useState({ name: '', email: '', cpf: '' });
+  const [formData, setFormData] = useState({ name: '', email: '', cpf: '', password: '' });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
   const [hasUpsell, setHasUpsell] = useState(false);
@@ -118,6 +119,7 @@ const Checkout = () => {
       const { data, error } = await supabase.functions.invoke('create-payment', {
         body: {
           product_ids: productIds, // Enviar apenas IDs
+          password: formData.password, // Enviar senha para criar usuário após pagamento
           payer: {
             email: formData.email,
             name: formData.name,
@@ -272,6 +274,28 @@ const Checkout = () => {
                         disabled={loading}
                       />
                       {errors.cpf && <p className="text-sm text-destructive mt-1.5 flex items-center gap-1"><AlertCircle className="w-3 h-3" />{errors.cpf}</p>}
+                    </div>
+
+                    <div>
+                      <Label htmlFor="password" className="text-base font-semibold">Senha *</Label>
+                      <Input
+                        id="password"
+                        type="password"
+                        placeholder="Mínimo 6 caracteres"
+                        value={formData.password}
+                        onChange={(e) => handleInputChange('password', e.target.value)}
+                        className={errors.password ? "border-destructive h-12" : "h-12"}
+                        disabled={loading}
+                      />
+                      {errors.password && <p className="text-sm text-destructive mt-1.5 flex items-center gap-1"><AlertCircle className="w-3 h-3" />{errors.password}</p>}
+                      <div className="mt-2 p-3 bg-primary/10 border border-primary/30 rounded-lg">
+                        <p className="text-xs text-primary font-medium flex items-start gap-2">
+                          <Lock className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                          <span>
+                            Essas credenciais (email + senha) serão usadas para você acessar e baixar suas planilhas após a confirmação do pagamento.
+                          </span>
+                        </p>
+                      </div>
                     </div>
                   </div>
 
