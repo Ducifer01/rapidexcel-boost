@@ -46,7 +46,7 @@ export const createPaymentPreference = async (data: CheckoutData) => {
   try {
     // Esta chamada deve ser feita através de uma Edge Function
     // que possui o Access Token do MercadoPago de forma segura
-    const response = await fetch('/api/create-payment', {
+    const response = await fetch('https://ezymoplfpsjpklskgodn.supabase.co/functions/v1/create-payment', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -69,9 +69,8 @@ export const createPaymentPreference = async (data: CheckoutData) => {
 /**
  * Redireciona para o checkout do MercadoPago
  */
-export const redirectToCheckout = (preferenceId: string) => {
-  const checkoutUrl = `https://www.mercadopago.com.br/checkout/v1/redirect?pref_id=${preferenceId}`;
-  window.location.href = checkoutUrl;
+export const redirectToCheckout = (initPoint: string) => {
+  window.location.href = initPoint;
 };
 
 /**

@@ -38,6 +38,12 @@ All colors MUST be HSL.
     --accent: 271 81% 56%;
     --accent-foreground: 0 0% 100%;
 
+    /* Gold (amarelo escuro) para CTAs especiais */
+    --gold: 45 90% 45%;
+    --gold-glow: 45 90% 55%;
+
+    /* Gradientes personalizados */
+
     --muted: 220 15% 96%;
     --muted-foreground: 220 10% 46%;
 

@@ -2,7 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Check, Sparkles, TrendingUp } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-
+import { createPaymentPreference, redirectToCheckout } from "@/services/mercadopago";
 const Offers = () => {
   return (
     <section id="ofertas" className="py-16 md:py-24 px-4 bg-gradient-to-b from-muted/30 to-background">
@@ -71,6 +71,22 @@ const Offers = () => {
               <Button 
                 size="lg" 
                 className="w-full bg-gradient-to-r from-primary to-primary-glow hover:opacity-90 text-lg py-6 shadow-[0_10px_40px_-10px_hsl(var(--primary)/0.5)] hover:shadow-[0_15px_50px_-10px_hsl(var(--primary)/0.6)] transition-all duration-300"
+                onClick={async () => {
+                  const email = window.prompt('Digite seu e-mail para receber o acesso:')?.trim();
+                  if (!email) return;
+                  try {
+                    const { preference_id, init_point } = await createPaymentPreference({
+                      items: [{ title: 'Pack 1 - 6.000 Planilhas Excel', quantity: 1, unit_price: 12.99 }],
+                      payer: { email },
+                    });
+                    if (init_point) {
+                      redirectToCheckout(init_point);
+                    }
+                  } catch (e) {
+                    console.error(e);
+                    alert('Erro ao iniciar pagamento. Tente novamente.');
+                  }
+                }}
               >
                 Comprar Pack 1
               </Button>
@@ -136,7 +152,23 @@ const Offers = () => {
               </div>
               <Button 
                 size="lg" 
-                className="w-full bg-gradient-to-r from-yellow-700 to-yellow-600 hover:opacity-90 text-lg py-6 shadow-[0_10px_40px_-10px_rgba(161,98,7,0.5)] hover:shadow-[0_15px_50px_-10px_rgba(161,98,7,0.6)] transition-all duration-300"
+                className="w-full bg-gradient-to-r from-[hsl(var(--gold))] to-[hsl(var(--gold-glow))] hover:opacity-90 text-lg py-6 shadow-[0_10px_40px_-10px_hsl(var(--gold)/0.5)] hover:shadow-[0_15px_50px_-10px_hsl(var(--gold)/0.6)] transition-all duration-300"
+                onClick={async () => {
+                  const email = window.prompt('Digite seu e-mail para receber o acesso:')?.trim();
+                  if (!email) return;
+                  try {
+                    const { preference_id, init_point } = await createPaymentPreference({
+                      items: [{ title: 'Pack 2 - Planner + 50 Dashboards', quantity: 1, unit_price: 12.99 }],
+                      payer: { email },
+                    });
+                    if (init_point) {
+                      redirectToCheckout(init_point);
+                    }
+                  } catch (e) {
+                    console.error(e);
+                    alert('Erro ao iniciar pagamento. Tente novamente.');
+                  }
+                }}
               >
                 Adicionar Pack 2
               </Button>
@@ -167,6 +199,25 @@ const Offers = () => {
               <Button 
                 size="lg" 
                 className="bg-gradient-to-r from-accent to-accent/80 hover:opacity-90 text-lg px-12 py-6 shadow-[0_10px_40px_-10px_hsl(var(--accent)/0.5)] hover:shadow-[0_15px_50px_-10px_hsl(var(--accent)/0.6)] transition-all duration-300 whitespace-normal h-auto leading-tight"
+                onClick={async () => {
+                  const email = window.prompt('Digite seu e-mail para receber o acesso:')?.trim();
+                  if (!email) return;
+                  try {
+                    const { preference_id, init_point } = await createPaymentPreference({
+                      items: [
+                        { title: 'Pack 1 - 6.000 Planilhas Excel', quantity: 1, unit_price: 12.99 },
+                        { title: 'Pack 2 - Planner + 50 Dashboards', quantity: 1, unit_price: 12.99 }
+                      ],
+                      payer: { email },
+                    });
+                    if (init_point) {
+                      redirectToCheckout(init_point);
+                    }
+                  } catch (e) {
+                    console.error(e);
+                    alert('Erro ao iniciar pagamento. Tente novamente.');
+                  }
+                }}
               >
                 Aproveitar Promoção
               </Button>

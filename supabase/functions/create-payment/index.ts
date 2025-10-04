@@ -23,6 +23,8 @@ serve(async (req) => {
       throw new Error('MercadoPago Access Token não configurado');
     }
 
+    const externalRef = crypto.randomUUID();
+
     // Criar preferência de pagamento no MercadoPago
     const preferenceData = {
       items,
@@ -33,6 +35,7 @@ serve(async (req) => {
         pending: `${req.headers.get('origin')}/pending`,
       },
       notification_url: `${Deno.env.get('SUPABASE_URL')}/functions/v1/payment-webhook`,
+      external_reference: externalRef,
       auto_return: 'approved',
     };
 
@@ -64,7 +67,7 @@ serve(async (req) => {
       products: items.map((item: any) => item.title),
       total_amount: items.reduce((sum: number, item: any) => sum + (item.unit_price * item.quantity), 0),
       payment_status: 'pending',
-      payment_id: preference.id,
+      payment_id: externalRef,
     });
 
     return new Response(
