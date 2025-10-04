@@ -13,7 +13,37 @@ serve(async (req) => {
   }
 
   try {
-    const { items, payer, back_urls } = await req.json();
+    const { product_ids, payer, back_urls } = await req.json();
+
+    // VALIDAÇÃO DE SEGURANÇA: Preços são definidos NO SERVIDOR
+    // NUNCA confiar em preços vindos do frontend!
+    const VALID_PRODUCTS = {
+      'pack_1': { title: 'Pack 1 - 6.000 Planilhas Excel', price: 12.99 },
+      'pack_2': { title: 'Pack 2 - Planner + 50 Dashboards', price: 12.99 },
+    };
+
+    // Validar IDs dos produtos
+    if (!product_ids || !Array.isArray(product_ids)) {
+      throw new Error('product_ids inválido');
+    }
+
+    // Validar que Pack 2 nunca vem sozinho
+    if (product_ids.length === 1 && product_ids[0] === 'pack_2') {
+      throw new Error('Pack 2 só pode ser comprado junto com Pack 1');
+    }
+
+    // Construir items com preços SEGUROS do servidor
+    const items = product_ids.map((id: string) => {
+      const product = VALID_PRODUCTS[id as keyof typeof VALID_PRODUCTS];
+      if (!product) {
+        throw new Error(`Produto inválido: ${id}`);
+      }
+      return {
+        title: product.title,
+        quantity: 1,
+        unit_price: product.price,
+      };
+    });
 
     // Obtenha o Access Token do MercadoPago das variáveis de ambiente
     // Configure isso no painel do Supabase > Edge Functions > Secrets

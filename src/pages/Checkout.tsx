@@ -1,11 +1,11 @@
 import { useState } from "react";
-import { useSearchParams, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Shield, Clock, Check, CreditCard, Lock, Users, TrendingUp } from "lucide-react";
+import { Shield, Clock, Check, CreditCard, Lock, Users, TrendingUp, Sparkles, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { z } from "zod";
@@ -16,43 +16,19 @@ const checkoutSchema = z.object({
   cpf: z.string().trim().regex(/^\d{11}$/, "CPF deve conter 11 dígitos"),
 });
 
-const packages = {
-  pack1: {
-    id: 'pack_1',
-    name: 'Pack 1',
-    fullName: '6.000 Planilhas Excel',
-    price: 12.99,
-    originalPrice: undefined,
-    items: ['6.000 planilhas editáveis', 'Todas as categorias', 'Acesso vitalício'],
-  },
-  pack2: {
-    id: 'pack_2',
-    name: 'Pack 2',
-    fullName: 'Planner + 50 Dashboards',
-    price: 12.99,
-    originalPrice: 25.00,
-    items: ['Planner Financeiro completo', '+50 Dashboards Premium', 'Acesso vitalício'],
-  },
-  combo: {
-    id: 'combo',
-    name: 'Combo Completo',
-    fullName: 'Pack 1 + Pack 2',
-    price: 25.98,
-    originalPrice: 37.99,
-    items: ['6.000 planilhas editáveis', 'Planner Financeiro', '+50 Dashboards Premium', 'Acesso vitalício'],
-  },
-};
-
 const Checkout = () => {
-  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const packageType = (searchParams.get('package') || 'combo') as keyof typeof packages;
-  const selectedPackage = packages[packageType];
 
   const [formData, setFormData] = useState({ name: '', email: '', cpf: '' });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
+  const [showUpsell, setShowUpsell] = useState(false);
+  const [hasUpsell, setHasUpsell] = useState(false);
+
+  const pack1Price = 12.99;
+  const pack2Price = 12.99;
+  const totalPrice = hasUpsell ? pack1Price + pack2Price : pack1Price;
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -61,11 +37,10 @@ const Checkout = () => {
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleContinue = (e: React.FormEvent) => {
     e.preventDefault();
     setErrors({});
 
-    // Validação
     const result = checkoutSchema.safeParse(formData);
     if (!result.success) {
       const newErrors: Record<string, string> = {};
@@ -76,20 +51,34 @@ const Checkout = () => {
       return;
     }
 
+    // Mostrar upsell apenas se ainda não foi adicionado
+    if (!hasUpsell) {
+      setShowUpsell(true);
+    } else {
+      handleFinalizePayment();
+    }
+  };
+
+  const handleAddUpsell = () => {
+    setHasUpsell(true);
+    setShowUpsell(false);
+  };
+
+  const handleSkipUpsell = () => {
+    setShowUpsell(false);
+    handleFinalizePayment();
+  };
+
+  const handleFinalizePayment = async () => {
     setLoading(true);
 
     try {
-      // Criar preferência de pagamento
-      const items = packageType === 'combo'
-        ? [
-            { title: 'Pack 1 - 6.000 Planilhas Excel', quantity: 1, unit_price: 12.99 },
-            { title: 'Pack 2 - Planner + 50 Dashboards', quantity: 1, unit_price: 12.99 }
-          ]
-        : [{ title: selectedPackage.fullName, quantity: 1, unit_price: selectedPackage.price }];
+      // IMPORTANTE: Não enviar preços! Apenas IDs dos produtos
+      const productIds = hasUpsell ? ['pack_1', 'pack_2'] : ['pack_1'];
 
       const { data, error } = await supabase.functions.invoke('create-payment', {
         body: {
-          items,
+          product_ids: productIds, // Enviar apenas IDs
           payer: {
             email: formData.email,
             name: formData.name,
@@ -122,17 +111,116 @@ const Checkout = () => {
 
   return (
     <div className="min-h-screen bg-background py-8 px-4">
+      {/* Modal Upsell */}
+      {showUpsell && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+          <Card className="max-w-2xl w-full border-4 border-secondary shadow-2xl">
+            <CardHeader className="text-center pb-4 relative">
+              <Badge className="mb-4 mx-auto bg-secondary text-secondary-foreground w-fit text-base px-6 py-2">
+                <Sparkles className="w-4 h-4 mr-2" />
+                OFERTA EXCLUSIVA!
+              </Badge>
+              <CardTitle className="text-3xl md:text-4xl font-bold mb-2">
+                Espere! Oferta Única 🎁
+              </CardTitle>
+              <p className="text-muted-foreground text-lg">
+                Adicione o Pack Premium por apenas <span className="text-secondary font-bold">R$ 12,99</span>
+              </p>
+            </CardHeader>
+            <CardContent className="space-y-6 pb-8">
+              <div className="bg-gradient-to-br from-secondary/10 to-transparent rounded-xl p-6 border-2 border-secondary/20">
+                <h3 className="text-2xl font-bold mb-4 text-center">
+                  Pack 2: Planner + 50 Dashboards
+                </h3>
+                <div className="grid md:grid-cols-2 gap-4 mb-4">
+                  <div className="space-y-3">
+                    <div className="flex items-start gap-2">
+                      <Check className="w-5 h-5 text-secondary mt-0.5 flex-shrink-0" />
+                      <span className="text-sm">Planner Financeiro Completo</span>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <Check className="w-5 h-5 text-secondary mt-0.5 flex-shrink-0" />
+                      <span className="text-sm">+50 Dashboards Premium</span>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <Check className="w-5 h-5 text-secondary mt-0.5 flex-shrink-0" />
+                      <span className="text-sm">Controle financeiro automático</span>
+                    </div>
+                  </div>
+                  <div className="space-y-3">
+                    <div className="flex items-start gap-2">
+                      <Check className="w-5 h-5 text-secondary mt-0.5 flex-shrink-0" />
+                      <span className="text-sm">Análises de vendas e RH</span>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <Check className="w-5 h-5 text-secondary mt-0.5 flex-shrink-0" />
+                      <span className="text-sm">Relatórios profissionais</span>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <Check className="w-5 h-5 text-secondary mt-0.5 flex-shrink-0" />
+                      <span className="text-sm">Acesso vitalício</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-white dark:bg-card rounded-lg p-4 text-center">
+                  <p className="text-sm text-muted-foreground mb-2">
+                    <span className="line-through">Valor normal: R$ 25,00</span>
+                  </p>
+                  <p className="text-4xl font-bold text-secondary mb-2">
+                    R$ 12,99
+                  </p>
+                  <Badge className="bg-destructive text-destructive-foreground">
+                    48% OFF - ECONOMIZE R$ 12,01
+                  </Badge>
+                </div>
+              </div>
+
+              <div className="bg-destructive/10 border-2 border-destructive/30 rounded-lg p-4 text-center">
+                <p className="font-bold text-destructive mb-1">⚠️ Esta oferta não se repete!</p>
+                <p className="text-sm text-muted-foreground">
+                  Se sair desta página, perderá este desconto especial para sempre
+                </p>
+              </div>
+
+              <div className="space-y-3">
+                <Button 
+                  size="lg" 
+                  className="w-full bg-gradient-to-r from-secondary to-secondary-glow hover:opacity-90 text-lg py-6 text-white"
+                  onClick={handleAddUpsell}
+                >
+                  <Sparkles className="w-5 h-5 mr-2" />
+                  SIM! Quero Adicionar o Pack 2
+                </Button>
+                <Button 
+                  variant="ghost" 
+                  size="lg" 
+                  className="w-full"
+                  onClick={handleSkipUpsell}
+                >
+                  Não, quero apenas o Pack 1
+                </Button>
+              </div>
+
+              <p className="text-xs text-center text-muted-foreground">
+                Mais de 1.200 pessoas adicionaram esta oferta hoje
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
       <div className="container max-w-6xl mx-auto">
         {/* Header */}
         <div className="text-center mb-8">
-          <Badge className="mb-4 bg-secondary text-secondary-foreground">
-            🔥 OFERTA POR TEMPO LIMITADO
+          <Badge className="mb-4 bg-primary text-primary-foreground">
+            🔒 CHECKOUT SEGURO
           </Badge>
           <h1 className="text-3xl md:text-4xl font-bold mb-2">
-            Últimas unidades disponíveis!
+            Finalize Sua Compra
           </h1>
           <p className="text-muted-foreground">
-            Milhares de pessoas já adquiriram. Garanta o seu agora!
+            Acesso imediato após confirmação do pagamento
           </p>
         </div>
 
@@ -143,24 +231,11 @@ const Checkout = () => {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Lock className="w-5 h-5 text-primary" />
-                  Checkout Seguro
+                  Seus Dados
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <form onSubmit={handleSubmit} className="space-y-6">
-                  {/* Progress */}
-                  <div className="flex items-center gap-2 mb-6">
-                    <div className="flex items-center gap-2 text-primary">
-                      <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold">1</div>
-                      <span className="text-sm font-medium">Seus dados</span>
-                    </div>
-                    <div className="flex-1 h-1 bg-border"></div>
-                    <div className="flex items-center gap-2 text-muted-foreground">
-                      <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center font-bold">2</div>
-                      <span className="text-sm">Pagamento</span>
-                    </div>
-                  </div>
-
+                <form onSubmit={handleContinue} className="space-y-6">
                   <div className="space-y-4">
                     <div>
                       <Label htmlFor="name">Nome Completo *</Label>
@@ -216,7 +291,7 @@ const Checkout = () => {
                     {loading ? "Processando..." : (
                       <>
                         <CreditCard className="w-5 h-5 mr-2" />
-                        Ir para Pagamento
+                        {hasUpsell ? "Finalizar Pagamento" : "Continuar"}
                       </>
                     )}
                   </Button>
@@ -261,34 +336,44 @@ const Checkout = () => {
                 <CardTitle>Resumo do Pedido</CardTitle>
               </CardHeader>
               <CardContent className="space-y-6">
-                <div>
-                  <h3 className="font-bold text-xl mb-4">{selectedPackage.name}</h3>
-                  <div className="space-y-2">
-                    {selectedPackage.items.map((item, i) => (
-                      <div key={i} className="flex items-start gap-2 text-sm">
-                        <Check className="w-4 h-4 text-primary mt-0.5 flex-shrink-0" />
-                        <span>{item}</span>
-                      </div>
-                    ))}
+                <div className="space-y-4">
+                  {/* Pack 1 */}
+                  <div className="flex justify-between items-start pb-4 border-b">
+                    <div className="flex-1">
+                      <h3 className="font-bold">Pack 1</h3>
+                      <p className="text-sm text-muted-foreground">6.000 Planilhas Excel</p>
+                    </div>
+                    <p className="font-bold">R$ 12,99</p>
                   </div>
+
+                  {/* Pack 2 (se adicionado) */}
+                  {hasUpsell && (
+                    <div className="flex justify-between items-start pb-4 border-b bg-secondary/5 -mx-6 px-6 py-4">
+                      <div className="flex-1">
+                        <Badge className="mb-2 bg-secondary text-secondary-foreground">
+                          ADICIONADO!
+                        </Badge>
+                        <h3 className="font-bold">Pack 2</h3>
+                        <p className="text-sm text-muted-foreground">Planner + 50 Dashboards</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm line-through text-muted-foreground">R$ 25,00</p>
+                        <p className="font-bold text-secondary">R$ 12,99</p>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 <div className="border-t pt-4 space-y-2">
-                  {selectedPackage.originalPrice && (
-                    <div className="flex justify-between text-sm text-muted-foreground">
-                      <span>Valor original</span>
-                      <span className="line-through">R$ {selectedPackage.originalPrice.toFixed(2)}</span>
-                    </div>
-                  )}
                   <div className="flex justify-between items-center">
                     <span className="text-lg font-bold">Total</span>
                     <div className="text-right">
                       <div className="text-3xl font-bold text-primary">
-                        R$ {selectedPackage.price.toFixed(2)}
+                        R$ {totalPrice.toFixed(2)}
                       </div>
-                      {selectedPackage.originalPrice && (
+                      {hasUpsell && (
                         <Badge className="bg-secondary text-secondary-foreground mt-1">
-                          Economize R$ {(selectedPackage.originalPrice - selectedPackage.price).toFixed(2)}
+                          Economizou R$ 12,01
                         </Badge>
                       )}
                     </div>
@@ -315,16 +400,6 @@ const Checkout = () => {
                       <strong className="text-foreground">98% de satisfação</strong> dos clientes
                     </span>
                   </div>
-                </div>
-
-                {/* Urgência */}
-                <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4">
-                  <p className="text-sm font-bold text-destructive text-center">
-                    ⚠️ Promoção válida por tempo limitado!
-                  </p>
-                  <p className="text-xs text-center text-muted-foreground mt-1">
-                    Preço pode aumentar a qualquer momento
-                  </p>
                 </div>
               </CardContent>
             </Card>
