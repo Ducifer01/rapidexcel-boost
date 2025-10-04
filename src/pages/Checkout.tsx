@@ -26,7 +26,6 @@ const Checkout = () => {
   const [formData, setFormData] = useState({ name: '', email: '', cpf: '' });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
-  const [showUpsell, setShowUpsell] = useState(false);
   const [hasUpsell, setHasUpsell] = useState(false);
   const [buyersCount, setBuyersCount] = useState(2847);
   const [showNotification, setShowNotification] = useState(false);
@@ -71,7 +70,7 @@ const Checkout = () => {
     }
   };
 
-  const handleContinue = (e: React.FormEvent) => {
+  const handleContinue = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrors({});
 
@@ -85,21 +84,6 @@ const Checkout = () => {
       return;
     }
 
-    // Mostrar upsell apenas se ainda não foi adicionado
-    if (!hasUpsell) {
-      setShowUpsell(true);
-    } else {
-      handleFinalizePayment();
-    }
-  };
-
-  const handleAddUpsell = () => {
-    setHasUpsell(true);
-    setShowUpsell(false);
-  };
-
-  const handleSkipUpsell = () => {
-    setShowUpsell(false);
     handleFinalizePayment();
   };
 
@@ -165,90 +149,6 @@ const Checkout = () => {
                 <p className="font-bold text-foreground">{randomNotification.name}</p>
                 <p className="text-muted-foreground">de {randomNotification.city}</p>
                 <p className="text-primary font-semibold">acabou de comprar!</p>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
-
-      {/* Modal Upsell */}
-      {showUpsell && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-300">
-          <Card className="max-w-lg w-full border-2 border-secondary shadow-[0_0_50px_rgba(var(--secondary),0.3)] animate-in zoom-in duration-300">
-            <CardHeader className="text-center pb-4 relative bg-gradient-to-br from-secondary/10 to-transparent">
-              <Badge className="mb-3 mx-auto bg-gradient-to-r from-secondary to-secondary-glow text-white w-fit text-sm px-5 py-2 animate-pulse">
-                🎁 OFERTA EXCLUSIVA
-              </Badge>
-              <CardTitle className="text-3xl font-extrabold mb-2 bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text">
-                🚀 Turbine Seus Resultados!
-              </CardTitle>
-              <p className="text-muted-foreground">
-                Adicione o <span className="text-secondary font-bold text-lg">{pack2Name}</span> por apenas{" "}
-                <span className="text-secondary font-extrabold text-2xl">+R$ 12,99</span>
-              </p>
-            </CardHeader>
-            <CardContent className="space-y-5 pb-6">
-              <div className="bg-gradient-to-br from-secondary/5 via-secondary/10 to-transparent rounded-xl p-5 border-2 border-secondary/30 relative overflow-hidden">
-                <div className="absolute top-0 right-0 w-32 h-32 bg-secondary/10 rounded-full blur-3xl"></div>
-                
-                <div className="space-y-3 mb-5 relative z-10">
-                  {[
-                    "Planner Financeiro Completo",
-                    "+50 Dashboards Premium",
-                    "Controle financeiro automático",
-                    "Acesso vitalício"
-                  ].map((benefit, i) => (
-                    <div key={i} className="flex items-start gap-3 animate-in slide-in-from-left" style={{ animationDelay: `${i * 100}ms` }}>
-                      <Star className="w-5 h-5 text-secondary mt-0.5 flex-shrink-0 fill-secondary" />
-                      <span className="font-medium">{benefit}</span>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="bg-card/80 backdrop-blur rounded-xl p-4 text-center border border-border shadow-lg">
-                  <div className="flex items-center justify-center gap-4 mb-2">
-                    <div className="text-left">
-                      <p className="text-xs text-muted-foreground line-through">De R$ 25,00</p>
-                      <p className="text-xs text-muted-foreground">Hoje apenas:</p>
-                    </div>
-                    <p className="text-4xl font-black text-secondary">
-                      R$ 12,99
-                    </p>
-                  </div>
-                  <Badge className="bg-gradient-to-r from-destructive to-orange-600 text-white text-sm px-4 py-1">
-                    Economize R$ 12,01 (48% OFF)
-                  </Badge>
-                </div>
-              </div>
-
-              <div className="bg-gradient-to-r from-destructive/10 via-orange-500/10 to-destructive/10 border-2 border-destructive/40 rounded-xl p-4 text-center animate-pulse">
-                <div className="flex items-center justify-center gap-2 mb-1">
-                  <AlertCircle className="w-5 h-5 text-destructive" />
-                  <p className="font-extrabold text-destructive">Esta oferta não se repete!</p>
-                </div>
-                <p className="text-sm text-muted-foreground">
-                  Se sair desta página, perderá este desconto especial
-                </p>
-              </div>
-
-              <div className="space-y-3">
-                <Button 
-                  size="lg" 
-                  className="w-full bg-gradient-to-r from-secondary via-secondary-glow to-secondary hover:opacity-90 text-white shadow-[0_10px_40px_rgba(var(--secondary),0.4)] hover:shadow-[0_15px_50px_rgba(var(--secondary),0.5)] transition-all duration-300 text-lg py-7 font-bold"
-                  onClick={handleAddUpsell}
-                >
-                  <Sparkles className="w-5 h-5 mr-2" />
-                  SIM! Quero o Pack Premium
-                  <span className="ml-2 text-sm font-normal">(+R$ 12,99)</span>
-                </Button>
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  className="w-full text-muted-foreground hover:text-foreground"
-                  onClick={handleSkipUpsell}
-                >
-                  Não, quero apenas {pack1Name}
-                </Button>
               </div>
             </CardContent>
           </Card>
@@ -357,7 +257,7 @@ const Checkout = () => {
                     ) : (
                       <>
                         <CreditCard className="w-6 h-6 mr-2" />
-                        {hasUpsell ? "FINALIZAR PAGAMENTO" : "CONTINUAR PARA PAGAMENTO"}
+                        FINALIZAR PAGAMENTO
                       </>
                     )}
                   </Button>
@@ -373,6 +273,69 @@ const Checkout = () => {
                     </div>
                   </div>
                 </form>
+              </CardContent>
+            </Card>
+
+            {/* Oferta Especial - Upsell */}
+            <Card 
+              className={`border-2 transition-all duration-300 cursor-pointer ${
+                hasUpsell 
+                  ? 'border-secondary bg-gradient-to-br from-secondary/20 via-secondary/10 to-transparent shadow-[0_0_40px_rgba(var(--secondary),0.3)]' 
+                  : 'border-border/50 bg-card/80 hover:border-secondary/50 hover:shadow-[0_0_20px_rgba(var(--secondary),0.15)]'
+              }`}
+              onClick={() => setHasUpsell(!hasUpsell)}
+            >
+              <CardContent className="p-6">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all ${
+                        hasUpsell ? 'bg-secondary border-secondary' : 'border-border'
+                      }`}>
+                        {hasUpsell && <Check className="w-4 h-4 text-white" />}
+                      </div>
+                      <div>
+                        <Badge className="bg-gradient-to-r from-secondary to-secondary-glow text-white text-xs px-3 py-1 mb-2 animate-pulse">
+                          🎁 OFERTA ESPECIAL
+                        </Badge>
+                        <h3 className="font-bold text-xl text-foreground">
+                          Adicionar {pack2Name}
+                        </h3>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2 mb-4 ml-9">
+                      {[
+                        "Planner Financeiro Completo",
+                        "+50 Dashboards Premium",
+                        "Controle financeiro automático",
+                        "Acesso vitalício"
+                      ].map((benefit, i) => (
+                        <div key={i} className="flex items-center gap-2 text-sm">
+                          <Star className="w-4 h-4 text-secondary fill-secondary flex-shrink-0" />
+                          <span className="text-muted-foreground">{benefit}</span>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="ml-9 flex items-center gap-3 flex-wrap">
+                      <div className="flex items-baseline gap-2">
+                        <span className="text-xs text-muted-foreground line-through">R$ 25,00</span>
+                        <span className="text-2xl font-black text-secondary">R$ 12,99</span>
+                      </div>
+                      <Badge className="bg-gradient-to-r from-destructive to-orange-600 text-white text-xs px-3 py-1">
+                        48% OFF
+                      </Badge>
+                    </div>
+
+                    <div className="mt-4 ml-9 p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg">
+                      <p className="text-xs text-amber-600 dark:text-amber-400 font-medium flex items-center gap-2">
+                        <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                        <span>Esta oferta especial só está disponível agora durante o checkout!</span>
+                      </p>
+                    </div>
+                  </div>
+                </div>
               </CardContent>
             </Card>
 
