@@ -29,6 +29,7 @@ const Checkout = () => {
   const [hasUpsell, setHasUpsell] = useState(false);
   const [buyersCount, setBuyersCount] = useState(2847);
   const [showNotification, setShowNotification] = useState(false);
+  const [timeLeft, setTimeLeft] = useState(15 * 60); // 15 minutos em segundos
 
   const pack1Price = 12.99;
   const pack2Price = 12.99;
@@ -36,6 +37,10 @@ const Checkout = () => {
 
   const pack1Name = "Planilhas 6k Pro";
   const pack2Name = "Dashboards+Bônus";
+
+  // Preços originais para mostrar desconto
+  const pack1OriginalPrice = 197.00;
+  const pack2OriginalPrice = 25.00;
 
   // Efeitos para prova social
   useEffect(() => {
@@ -55,6 +60,22 @@ const Checkout = () => {
       clearInterval(notificationInterval);
     };
   }, []);
+
+  // Cronômetro de urgência
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setTimeLeft((prev) => (prev > 0 ? prev - 1 : 0));
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, []);
+
+  // Formatar tempo restante
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
 
   const handleInputChange = (field: string, value: string) => {
     let processedValue = value;
@@ -165,10 +186,21 @@ const Checkout = () => {
           <h1 className="text-4xl md:text-5xl font-black mb-3 bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text">
             Finalize Sua Compra
           </h1>
-          <p className="text-lg text-muted-foreground">
+          <p className="text-lg text-muted-foreground mb-4">
             <Clock className="w-4 h-4 inline mr-1" />
             Acesso <span className="text-primary font-bold">imediato</span> após confirmação do pagamento
           </p>
+          
+          {/* Cronômetro de Urgência */}
+          <div className="inline-flex items-center gap-3 bg-gradient-to-r from-destructive/20 via-orange-500/20 to-destructive/20 border-2 border-destructive/50 rounded-full px-6 py-3 shadow-lg animate-pulse">
+            <Clock className="w-5 h-5 text-destructive" />
+            <span className="text-sm font-semibold text-foreground">
+              Esta oferta termina em:
+            </span>
+            <span className="text-2xl font-black text-destructive tabular-nums">
+              {formatTime(timeLeft)}
+            </span>
+          </div>
         </div>
 
         <div className="grid lg:grid-cols-2 gap-8 items-start">
@@ -319,11 +351,9 @@ const Checkout = () => {
                     </div>
 
                     <div className="ml-9 flex items-center gap-3 flex-wrap">
-                      <div className="flex items-baseline gap-2">
-                        <span className="text-xs text-muted-foreground line-through">R$ 25,00</span>
-                        <span className="text-2xl font-black text-secondary">R$ 12,99</span>
-                      </div>
-                      <Badge className="bg-gradient-to-r from-destructive to-orange-600 text-white text-xs px-3 py-1">
+                      <span className="text-sm text-muted-foreground line-through">De R$ {pack2OriginalPrice.toFixed(2)}</span>
+                      <span className="text-3xl font-black text-secondary">R$ {pack2Price.toFixed(2).replace('.', ',')}</span>
+                      <Badge className="bg-gradient-to-r from-secondary to-secondary-glow text-white text-xs px-3 py-1.5 shadow-lg">
                         48% OFF
                       </Badge>
                     </div>
@@ -388,7 +418,7 @@ const Checkout = () => {
               <CardContent className="space-y-6 pt-6">
                 <div className="space-y-5">
                   {/* Pack 1 */}
-                  <div className="bg-gradient-to-br from-primary/5 to-transparent rounded-xl p-5 border border-primary/20">
+                  <div className="bg-gradient-to-br from-primary/5 to-transparent rounded-xl p-5 border border-primary/20 space-y-3">
                     <div className="flex justify-between items-start mb-4">
                       <div className="flex-1">
                         <h3 className="font-bold text-lg mb-1">{pack1Name}</h3>
@@ -403,12 +433,12 @@ const Checkout = () => {
                         </div>
                       ))}
                     </div>
-                    <div className="flex items-center justify-between pt-4 border-t border-border/50">
-                      <span className="text-sm text-muted-foreground line-through">De R$ 197,00</span>
-                      <div className="text-right">
-                        <Badge className="bg-gradient-to-r from-destructive to-orange-600 text-white mb-1">93% OFF</Badge>
-                        <p className="text-2xl font-black text-primary">R$ 12,99</p>
-                      </div>
+                    <div className="flex items-center gap-3 pt-4 border-t border-border/50">
+                      <span className="text-sm text-muted-foreground line-through">De R$ {pack1OriginalPrice.toFixed(2)}</span>
+                      <span className="text-3xl font-black text-primary">R$ {pack1Price.toFixed(2).replace('.', ',')}</span>
+                      <Badge className="bg-gradient-to-r from-destructive to-orange-600 text-white text-xs px-3 py-1.5 shadow-lg">
+                        93% OFF
+                      </Badge>
                     </div>
                   </div>
 
@@ -432,12 +462,12 @@ const Checkout = () => {
                           </div>
                         ))}
                       </div>
-                      <div className="flex items-center justify-between pt-4 border-t border-border/50">
-                        <span className="text-sm text-muted-foreground line-through">De R$ 25,00</span>
-                        <div className="text-right">
-                          <Badge className="bg-secondary text-white mb-1">48% OFF</Badge>
-                          <p className="text-2xl font-black text-secondary">R$ 12,99</p>
-                        </div>
+                      <div className="flex items-center gap-3 pt-4 border-t border-border/50">
+                        <span className="text-sm text-muted-foreground line-through">De R$ {pack2OriginalPrice.toFixed(2)}</span>
+                        <span className="text-3xl font-black text-secondary">R$ {pack2Price.toFixed(2).replace('.', ',')}</span>
+                        <Badge className="bg-gradient-to-r from-secondary to-secondary-glow text-white text-xs px-3 py-1.5 shadow-lg">
+                          48% OFF
+                        </Badge>
                       </div>
                     </div>
                   )}
