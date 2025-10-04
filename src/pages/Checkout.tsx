@@ -1,19 +1,22 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Shield, Clock, Check, CreditCard, Lock, Users, TrendingUp, Sparkles, X } from "lucide-react";
+import { Shield, Clock, Check, CreditCard, Lock, Users, TrendingUp, Sparkles, Star, AlertCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { z } from "zod";
+import { formatCPF, validateCPF } from "@/lib/cpf-utils";
 
 const checkoutSchema = z.object({
   name: z.string().trim().min(3, "Nome deve ter pelo menos 3 caracteres").max(100),
   email: z.string().trim().email("E-mail inválido").max(255),
-  cpf: z.string().trim().regex(/^\d{11}$/, "CPF deve conter 11 dígitos"),
+  cpf: z.string().trim().refine((val) => validateCPF(val.replace(/\D/g, '')), {
+    message: "CPF inválido",
+  }),
 });
 
 const Checkout = () => {
@@ -25,6 +28,8 @@ const Checkout = () => {
   const [loading, setLoading] = useState(false);
   const [showUpsell, setShowUpsell] = useState(false);
   const [hasUpsell, setHasUpsell] = useState(false);
+  const [buyersCount, setBuyersCount] = useState(2847);
+  const [showNotification, setShowNotification] = useState(false);
 
   const pack1Price = 12.99;
   const pack2Price = 12.99;
@@ -33,8 +38,34 @@ const Checkout = () => {
   const pack1Name = "Planilhas 6k Pro";
   const pack2Name = "Dashboards+Bônus";
 
+  // Efeitos para prova social
+  useEffect(() => {
+    // Incrementa contador de compradores
+    const buyersInterval = setInterval(() => {
+      setBuyersCount(prev => prev + Math.floor(Math.random() * 3) + 1);
+    }, Math.random() * 15000 + 10000);
+
+    // Mostra notificações de compra
+    const notificationInterval = setInterval(() => {
+      setShowNotification(true);
+      setTimeout(() => setShowNotification(false), 4000);
+    }, Math.random() * 20000 + 15000);
+
+    return () => {
+      clearInterval(buyersInterval);
+      clearInterval(notificationInterval);
+    };
+  }, []);
+
   const handleInputChange = (field: string, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    let processedValue = value;
+    
+    // Auto-formatar CPF
+    if (field === 'cpf') {
+      processedValue = formatCPF(value);
+    }
+    
+    setFormData(prev => ({ ...prev, [field]: processedValue }));
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: '' }));
     }
@@ -112,80 +143,108 @@ const Checkout = () => {
     }
   };
 
+  const notifications = [
+    { name: "Maria Silva", city: "São Paulo" },
+    { name: "João Santos", city: "Rio de Janeiro" },
+    { name: "Ana Costa", city: "Belo Horizonte" },
+    { name: "Pedro Oliveira", city: "Salvador" },
+    { name: "Carla Ferreira", city: "Brasília" },
+  ];
+  
+  const randomNotification = notifications[Math.floor(Math.random() * notifications.length)];
+
   return (
-    <div className="min-h-screen bg-background py-8 px-4">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 py-8 px-4">
+      {/* Notificação de compra em tempo real */}
+      {showNotification && (
+        <div className="fixed bottom-6 left-6 z-50 animate-in slide-in-from-left duration-500">
+          <Card className="border-2 border-primary bg-card shadow-2xl max-w-xs">
+            <CardContent className="p-4 flex items-center gap-3">
+              <div className="text-2xl">🎉</div>
+              <div className="text-sm">
+                <p className="font-bold text-foreground">{randomNotification.name}</p>
+                <p className="text-muted-foreground">de {randomNotification.city}</p>
+                <p className="text-primary font-semibold">acabou de comprar!</p>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
       {/* Modal Upsell */}
       {showUpsell && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-          <Card className="max-w-md w-full border-2 border-secondary shadow-2xl">
-            <CardHeader className="text-center pb-3 relative">
-              <Badge className="mb-3 mx-auto bg-secondary text-secondary-foreground w-fit text-sm px-4 py-1.5">
-                🎁 OFERTA EXCLUSIVA!
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-300">
+          <Card className="max-w-lg w-full border-2 border-secondary shadow-[0_0_50px_rgba(var(--secondary),0.3)] animate-in zoom-in duration-300">
+            <CardHeader className="text-center pb-4 relative bg-gradient-to-br from-secondary/10 to-transparent">
+              <Badge className="mb-3 mx-auto bg-gradient-to-r from-secondary to-secondary-glow text-white w-fit text-sm px-5 py-2 animate-pulse">
+                🎁 OFERTA EXCLUSIVA
               </Badge>
-              <CardTitle className="text-2xl font-bold mb-2">
-                Espere! Oferta Única
+              <CardTitle className="text-3xl font-extrabold mb-2 bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text">
+                🚀 Turbine Seus Resultados!
               </CardTitle>
-              <p className="text-muted-foreground text-sm">
-                Adicione o Pack Premium por apenas <span className="text-secondary font-bold">R$ 12,99</span>
+              <p className="text-muted-foreground">
+                Adicione o <span className="text-secondary font-bold text-lg">{pack2Name}</span> por apenas{" "}
+                <span className="text-secondary font-extrabold text-2xl">+R$ 12,99</span>
               </p>
             </CardHeader>
-            <CardContent className="space-y-4 pb-6">
-              <div className="bg-gradient-to-br from-secondary/10 to-transparent rounded-lg p-4 border border-secondary/20">
-                <h3 className="text-xl font-bold mb-3 text-center">
-                  {pack2Name}
-                </h3>
-                <div className="space-y-2 mb-4">
-                  <div className="flex items-start gap-2">
-                    <Check className="w-4 h-4 text-secondary mt-0.5 flex-shrink-0" />
-                    <span className="text-sm">Planner Financeiro Completo</span>
-                  </div>
-                  <div className="flex items-start gap-2">
-                    <Check className="w-4 h-4 text-secondary mt-0.5 flex-shrink-0" />
-                    <span className="text-sm">+50 Dashboards Premium</span>
-                  </div>
-                  <div className="flex items-start gap-2">
-                    <Check className="w-4 h-4 text-secondary mt-0.5 flex-shrink-0" />
-                    <span className="text-sm">Controle financeiro automático</span>
-                  </div>
-                  <div className="flex items-start gap-2">
-                    <Check className="w-4 h-4 text-secondary mt-0.5 flex-shrink-0" />
-                    <span className="text-sm">Acesso vitalício</span>
-                  </div>
+            <CardContent className="space-y-5 pb-6">
+              <div className="bg-gradient-to-br from-secondary/5 via-secondary/10 to-transparent rounded-xl p-5 border-2 border-secondary/30 relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-secondary/10 rounded-full blur-3xl"></div>
+                
+                <div className="space-y-3 mb-5 relative z-10">
+                  {[
+                    "Planner Financeiro Completo",
+                    "+50 Dashboards Premium",
+                    "Controle financeiro automático",
+                    "Acesso vitalício"
+                  ].map((benefit, i) => (
+                    <div key={i} className="flex items-start gap-3 animate-in slide-in-from-left" style={{ animationDelay: `${i * 100}ms` }}>
+                      <Star className="w-5 h-5 text-secondary mt-0.5 flex-shrink-0 fill-secondary" />
+                      <span className="font-medium">{benefit}</span>
+                    </div>
+                  ))}
                 </div>
 
-                <div className="bg-white dark:bg-card rounded-lg p-3 text-center">
-                  <p className="text-xs text-muted-foreground mb-1">
-                    <span className="line-through">Valor normal: R$ 25,00</span>
-                  </p>
-                  <p className="text-3xl font-bold text-secondary mb-1">
-                    R$ 12,99
-                  </p>
-                  <Badge className="bg-destructive text-destructive-foreground text-xs">
-                    48% OFF - ECONOMIZE R$ 12,01
+                <div className="bg-card/80 backdrop-blur rounded-xl p-4 text-center border border-border shadow-lg">
+                  <div className="flex items-center justify-center gap-4 mb-2">
+                    <div className="text-left">
+                      <p className="text-xs text-muted-foreground line-through">De R$ 25,00</p>
+                      <p className="text-xs text-muted-foreground">Hoje apenas:</p>
+                    </div>
+                    <p className="text-4xl font-black text-secondary">
+                      R$ 12,99
+                    </p>
+                  </div>
+                  <Badge className="bg-gradient-to-r from-destructive to-orange-600 text-white text-sm px-4 py-1">
+                    Economize R$ 12,01 (48% OFF)
                   </Badge>
                 </div>
               </div>
 
-              <div className="bg-destructive/10 border border-destructive/30 rounded-lg p-3 text-center">
-                <p className="font-bold text-destructive text-sm mb-0.5">⚠️ Esta oferta não se repete!</p>
-                <p className="text-xs text-muted-foreground">
+              <div className="bg-gradient-to-r from-destructive/10 via-orange-500/10 to-destructive/10 border-2 border-destructive/40 rounded-xl p-4 text-center animate-pulse">
+                <div className="flex items-center justify-center gap-2 mb-1">
+                  <AlertCircle className="w-5 h-5 text-destructive" />
+                  <p className="font-extrabold text-destructive">Esta oferta não se repete!</p>
+                </div>
+                <p className="text-sm text-muted-foreground">
                   Se sair desta página, perderá este desconto especial
                 </p>
               </div>
 
-              <div className="space-y-2">
+              <div className="space-y-3">
                 <Button 
                   size="lg" 
-                  className="w-full bg-gradient-to-r from-secondary to-secondary-glow hover:opacity-90 text-white"
+                  className="w-full bg-gradient-to-r from-secondary via-secondary-glow to-secondary hover:opacity-90 text-white shadow-[0_10px_40px_rgba(var(--secondary),0.4)] hover:shadow-[0_15px_50px_rgba(var(--secondary),0.5)] transition-all duration-300 text-lg py-7 font-bold"
                   onClick={handleAddUpsell}
                 >
-                  <Sparkles className="w-4 h-4 mr-2" />
-                  SIM! Quero Adicionar
+                  <Sparkles className="w-5 h-5 mr-2" />
+                  SIM! Quero o Pack Premium
+                  <span className="ml-2 text-sm font-normal">(+R$ 12,99)</span>
                 </Button>
                 <Button 
                   variant="ghost" 
                   size="sm" 
-                  className="w-full"
+                  className="w-full text-muted-foreground hover:text-foreground"
                   onClick={handleSkipUpsell}
                 >
                   Não, quero apenas {pack1Name}
@@ -196,31 +255,40 @@ const Checkout = () => {
         </div>
       )}
 
-      <div className="container max-w-6xl mx-auto">
-        {/* Header */}
-        <div className="text-center mb-8">
-          <Badge className="mb-4 bg-primary text-primary-foreground">
-            🔒 CHECKOUT SEGURO
+      <div className="container max-w-7xl mx-auto">
+        {/* Header com Selo de Segurança */}
+        <div className="text-center mb-10">
+          <Badge className="mb-6 bg-gradient-to-r from-primary to-primary-glow text-white px-6 py-2.5 text-base shadow-[0_8px_30px_rgba(var(--primary),0.3)] animate-pulse">
+            <Shield className="w-4 h-4 mr-2 inline" />
+            CHECKOUT 100% SEGURO
           </Badge>
-          <h1 className="text-3xl md:text-4xl font-bold mb-2">
+          <h1 className="text-4xl md:text-5xl font-black mb-3 bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text">
             Finalize Sua Compra
           </h1>
-          <p className="text-muted-foreground">
-            Acesso imediato após confirmação do pagamento
+          <p className="text-lg text-muted-foreground">
+            <Clock className="w-4 h-4 inline mr-1" />
+            Acesso <span className="text-primary font-bold">imediato</span> após confirmação do pagamento
           </p>
         </div>
 
-        <div className="grid lg:grid-cols-5 gap-8">
+        <div className="grid lg:grid-cols-2 gap-8 items-start">
           {/* Coluna esquerda - Formulário */}
-          <div className="lg:col-span-3">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Lock className="w-5 h-5 text-primary" />
-                  Seus Dados
-                </CardTitle>
+          <div className="space-y-6">
+            <Card className="border-2 border-border/50 shadow-2xl bg-card/80 backdrop-blur">
+              <CardHeader className="border-b border-border/50 bg-gradient-to-br from-primary/5 to-transparent">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="flex items-center gap-3 text-2xl">
+                    <div className="p-2 bg-primary/10 rounded-lg">
+                      <Lock className="w-6 h-6 text-primary" />
+                    </div>
+                    Seus Dados
+                  </CardTitle>
+                  <Badge variant="outline" className="text-xs">
+                    Passo 1 de 2
+                  </Badge>
+                </div>
               </CardHeader>
-              <CardContent>
+              <CardContent className="pt-6">
                 <form onSubmit={handleContinue} className="space-y-6">
                   <div className="space-y-4">
                     <div>
@@ -237,58 +305,70 @@ const Checkout = () => {
                     </div>
 
                     <div>
-                      <Label htmlFor="email">E-mail *</Label>
+                      <Label htmlFor="email" className="text-base font-semibold">E-mail *</Label>
                       <Input
                         id="email"
                         type="email"
                         placeholder="seu@email.com"
                         value={formData.email}
                         onChange={(e) => handleInputChange('email', e.target.value)}
-                        className={errors.email ? "border-destructive" : ""}
+                        className={errors.email ? "border-destructive h-12" : "h-12"}
                         disabled={loading}
                       />
-                      {errors.email && <p className="text-sm text-destructive mt-1">{errors.email}</p>}
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Seu acesso será enviado para este e-mail
-                      </p>
+                      {errors.email && <p className="text-sm text-destructive mt-1.5 flex items-center gap-1"><AlertCircle className="w-3 h-3" />{errors.email}</p>}
+                      <div className="mt-2 p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg">
+                        <p className="text-xs text-amber-600 dark:text-amber-400 font-medium flex items-start gap-2">
+                          <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                          <span>
+                            <strong>ATENÇÃO:</strong> Seu acesso será enviado para este e-mail. 
+                            Confira com cuidado antes de continuar. Se digitar errado, não receberá o acesso 
+                            e precisará entrar em contato com o suporte apresentando o comprovante de pagamento.
+                          </span>
+                        </p>
+                      </div>
                     </div>
 
                     <div>
-                      <Label htmlFor="cpf">CPF *</Label>
+                      <Label htmlFor="cpf" className="text-base font-semibold">CPF *</Label>
                       <Input
                         id="cpf"
-                        placeholder="Apenas números"
+                        placeholder="000.000.000-00"
                         value={formData.cpf}
-                        onChange={(e) => handleInputChange('cpf', e.target.value.replace(/\D/g, ''))}
-                        maxLength={11}
-                        className={errors.cpf ? "border-destructive" : ""}
+                        onChange={(e) => handleInputChange('cpf', e.target.value)}
+                        maxLength={14}
+                        className={errors.cpf ? "border-destructive h-12" : "h-12"}
                         disabled={loading}
                       />
-                      {errors.cpf && <p className="text-sm text-destructive mt-1">{errors.cpf}</p>}
+                      {errors.cpf && <p className="text-sm text-destructive mt-1.5 flex items-center gap-1"><AlertCircle className="w-3 h-3" />{errors.cpf}</p>}
                     </div>
                   </div>
 
                   <Button
                     type="submit"
-                    className="w-full bg-gradient-to-r from-primary to-primary-glow hover:opacity-90 text-lg py-6"
+                    className="w-full bg-gradient-to-r from-primary via-primary-glow to-primary hover:opacity-90 text-xl py-8 font-bold shadow-[0_10px_40px_rgba(var(--primary),0.4)] hover:shadow-[0_15px_50px_rgba(var(--primary),0.5)] transition-all duration-300"
                     size="lg"
                     disabled={loading}
                   >
-                    {loading ? "Processando..." : (
+                    {loading ? (
+                      <span className="flex items-center gap-2">
+                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                        Processando...
+                      </span>
+                    ) : (
                       <>
-                        <CreditCard className="w-5 h-5 mr-2" />
-                        {hasUpsell ? "Finalizar Pagamento" : "Continuar"}
+                        <CreditCard className="w-6 h-6 mr-2" />
+                        {hasUpsell ? "FINALIZAR PAGAMENTO" : "CONTINUAR PARA PAGAMENTO"}
                       </>
                     )}
                   </Button>
 
-                  <div className="flex items-center justify-center gap-4 text-xs text-muted-foreground">
-                    <div className="flex items-center gap-1">
-                      <Shield className="w-4 h-4" />
-                      <span>Pagamento 100% Seguro</span>
+                  <div className="flex items-center justify-center gap-6 text-sm text-muted-foreground pt-4">
+                    <div className="flex items-center gap-2">
+                      <Shield className="w-5 h-5 text-primary" />
+                      <span>Pagamento Seguro</span>
                     </div>
-                    <div className="flex items-center gap-1">
-                      <Lock className="w-4 h-4" />
+                    <div className="flex items-center gap-2">
+                      <Lock className="w-5 h-5 text-primary" />
                       <span>SSL Criptografado</span>
                     </div>
                   </div>
@@ -296,19 +376,40 @@ const Checkout = () => {
               </CardContent>
             </Card>
 
-            {/* Garantia */}
-            <Card className="mt-6 border-2 border-primary/20 bg-gradient-to-br from-primary/5 to-transparent">
-              <CardContent className="p-6">
+            {/* Garantias */}
+            <Card className="border-2 border-primary/30 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent shadow-[0_0_30px_rgba(var(--primary),0.15)]">
+              <CardContent className="p-6 space-y-5">
                 <div className="flex items-start gap-4">
-                  <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                    <Shield className="w-6 h-6 text-primary" />
+                  <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-primary to-primary-glow flex items-center justify-center flex-shrink-0 shadow-lg">
+                    <Shield className="w-7 h-7 text-white" />
                   </div>
                   <div>
-                    <h3 className="font-bold text-lg mb-2">Garantia de 7 Dias</h3>
-                    <p className="text-sm text-muted-foreground">
-                      Se você não ficar satisfeito, devolvemos 100% do seu dinheiro. 
+                    <h3 className="font-bold text-xl mb-2 text-primary">Garantia de 7 Dias</h3>
+                    <p className="text-sm text-muted-foreground leading-relaxed">
+                      Se você não ficar satisfeito, devolvemos <strong className="text-foreground">100% do seu dinheiro</strong>. 
                       Sem perguntas, sem complicações. Teste por 7 dias sem riscos!
                     </p>
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4 pt-4 border-t border-border/50">
+                  <div className="flex items-center gap-2 text-sm">
+                    <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                      <Lock className="w-4 h-4 text-primary" />
+                    </div>
+                    <div>
+                      <p className="font-semibold">Pagamento</p>
+                      <p className="text-xs text-muted-foreground">100% Seguro</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm">
+                    <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                      <Clock className="w-4 h-4 text-primary" />
+                    </div>
+                    <div>
+                      <p className="font-semibold">Acesso</p>
+                      <p className="text-xs text-muted-foreground">Imediato</p>
+                    </div>
                   </div>
                 </div>
               </CardContent>
@@ -316,50 +417,79 @@ const Checkout = () => {
           </div>
 
           {/* Coluna direita - Resumo */}
-          <div className="lg:col-span-2">
-            <Card className="sticky top-4">
-              <CardHeader>
-                <CardTitle>Resumo do Pedido</CardTitle>
+          <div className="lg:sticky lg:top-8 space-y-6">
+            <Card className="border-2 border-border/50 shadow-2xl bg-card/80 backdrop-blur">
+              <CardHeader className="border-b border-border/50 bg-gradient-to-br from-secondary/5 to-transparent">
+                <CardTitle className="text-2xl">Resumo do Pedido</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="space-y-4">
+              <CardContent className="space-y-6 pt-6">
+                <div className="space-y-5">
                   {/* Pack 1 */}
-                  <div className="flex justify-between items-start pb-4 border-b">
-                    <div className="flex-1">
-                      <h3 className="font-bold">{pack1Name}</h3>
-                      <p className="text-sm text-muted-foreground">6.000 Planilhas Excel</p>
+                  <div className="bg-gradient-to-br from-primary/5 to-transparent rounded-xl p-5 border border-primary/20">
+                    <div className="flex justify-between items-start mb-4">
+                      <div className="flex-1">
+                        <h3 className="font-bold text-lg mb-1">{pack1Name}</h3>
+                        <p className="text-sm text-muted-foreground">6.000 Planilhas Excel Profissionais</p>
+                      </div>
                     </div>
-                    <p className="font-bold">R$ 12,99</p>
+                    <div className="space-y-2 mb-4">
+                      {["6.000 Planilhas Excel", "Templates para Todos os Negócios", "Suporte Vitalício", "Atualizações Gratuitas"].map((item, i) => (
+                        <div key={i} className="flex items-center gap-2 text-sm">
+                          <Check className="w-4 h-4 text-primary" />
+                          <span>{item}</span>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="flex items-center justify-between pt-4 border-t border-border/50">
+                      <span className="text-sm text-muted-foreground line-through">De R$ 197,00</span>
+                      <div className="text-right">
+                        <Badge className="bg-gradient-to-r from-destructive to-orange-600 text-white mb-1">93% OFF</Badge>
+                        <p className="text-2xl font-black text-primary">R$ 12,99</p>
+                      </div>
+                    </div>
                   </div>
 
                   {/* Pack 2 (se adicionado) */}
                   {hasUpsell && (
-                    <div className="flex justify-between items-start pb-4 border-b bg-secondary/5 -mx-6 px-6 py-4">
-                      <div className="flex-1">
-                        <Badge className="mb-2 bg-secondary text-secondary-foreground">
-                          ADICIONADO!
-                        </Badge>
-                        <h3 className="font-bold">{pack2Name}</h3>
-                        <p className="text-sm text-muted-foreground">Planner + 50 Dashboards</p>
+                    <div className="bg-gradient-to-br from-secondary/10 to-transparent rounded-xl p-5 border-2 border-secondary/40 animate-in slide-in-from-right duration-500">
+                      <Badge className="mb-3 bg-gradient-to-r from-secondary to-secondary-glow text-white animate-pulse">
+                        ✓ ADICIONADO!
+                      </Badge>
+                      <div className="flex justify-between items-start mb-4">
+                        <div className="flex-1">
+                          <h3 className="font-bold text-lg mb-1">{pack2Name}</h3>
+                          <p className="text-sm text-muted-foreground">Planner + 50 Dashboards Premium</p>
+                        </div>
                       </div>
-                      <div className="text-right">
-                        <p className="text-sm line-through text-muted-foreground">R$ 25,00</p>
-                        <p className="font-bold text-secondary">R$ 12,99</p>
+                      <div className="space-y-2 mb-4">
+                        {["Planner Financeiro Completo", "+50 Dashboards Premium", "Controle Automático", "Acesso Vitalício"].map((item, i) => (
+                          <div key={i} className="flex items-center gap-2 text-sm">
+                            <Star className="w-4 h-4 text-secondary fill-secondary" />
+                            <span>{item}</span>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="flex items-center justify-between pt-4 border-t border-border/50">
+                        <span className="text-sm text-muted-foreground line-through">De R$ 25,00</span>
+                        <div className="text-right">
+                          <Badge className="bg-secondary text-white mb-1">48% OFF</Badge>
+                          <p className="text-2xl font-black text-secondary">R$ 12,99</p>
+                        </div>
                       </div>
                     </div>
                   )}
                 </div>
 
-                <div className="border-t pt-4 space-y-2">
-                  <div className="flex justify-between items-center">
-                    <span className="text-lg font-bold">Total</span>
+                <div className="border-t-2 border-border pt-6 space-y-3">
+                  <div className="flex justify-between items-center text-xl">
+                    <span className="font-bold">TOTAL</span>
                     <div className="text-right">
-                      <div className="text-3xl font-bold text-primary">
+                      <div className="text-4xl font-black text-primary mb-1">
                         R$ {totalPrice.toFixed(2)}
                       </div>
                       {hasUpsell && (
-                        <Badge className="bg-secondary text-secondary-foreground mt-1">
-                          Economizou R$ 12,01
+                        <Badge className="bg-gradient-to-r from-secondary to-secondary-glow text-white text-sm">
+                          Você economizou R$ 12,01
                         </Badge>
                       )}
                     </div>
@@ -367,52 +497,69 @@ const Checkout = () => {
                 </div>
 
                 {/* Social Proof */}
-                <div className="space-y-3 pt-4 border-t">
-                  <div className="flex items-center gap-3 text-sm">
-                    <Users className="w-5 h-5 text-primary" />
-                    <span className="text-muted-foreground">
-                      <strong className="text-foreground">2.847 pessoas</strong> compraram hoje
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-3 text-sm">
-                    <Clock className="w-5 h-5 text-primary" />
-                    <span className="text-muted-foreground">
-                      <strong className="text-foreground">Acesso imediato</strong> após pagamento
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-3 text-sm">
-                    <TrendingUp className="w-5 h-5 text-primary" />
-                    <span className="text-muted-foreground">
-                      <strong className="text-foreground">98% de satisfação</strong> dos clientes
-                    </span>
+                <div className="space-y-4 pt-6 border-t border-border/50">
+                  <h4 className="font-bold text-sm text-muted-foreground uppercase tracking-wider">Prova Social</h4>
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-3 p-3 bg-primary/5 rounded-lg">
+                      <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                        <Users className="w-5 h-5 text-primary" />
+                      </div>
+                      <span className="text-sm">
+                        <strong className="text-primary text-lg font-bold">{buyersCount.toLocaleString('pt-BR')}</strong>
+                        <span className="text-muted-foreground"> pessoas compraram hoje</span>
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-3 p-3 bg-primary/5 rounded-lg">
+                      <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                        <Clock className="w-5 h-5 text-primary" />
+                      </div>
+                      <span className="text-sm">
+                        <span className="text-muted-foreground">Acesso </span>
+                        <strong className="text-foreground">imediato</strong>
+                        <span className="text-muted-foreground"> após pagamento</span>
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-3 p-3 bg-primary/5 rounded-lg">
+                      <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                        <TrendingUp className="w-5 h-5 text-primary" />
+                      </div>
+                      <span className="text-sm">
+                        <strong className="text-primary text-lg font-bold">98%</strong>
+                        <span className="text-muted-foreground"> de satisfação</span>
+                      </span>
+                    </div>
                   </div>
                 </div>
               </CardContent>
             </Card>
-          </div>
-        </div>
 
-        {/* Depoimentos rápidos */}
-        <div className="mt-12 text-center">
-          <h2 className="text-2xl font-bold mb-6">O que nossos clientes dizem</h2>
-          <div className="grid md:grid-cols-3 gap-6 max-w-4xl mx-auto">
-            {[
-              { name: "Maria S.", text: "Salvou minha empresa! As planilhas são incríveis." },
-              { name: "João P.", text: "Melhor investimento que fiz. Vale cada centavo!" },
-              { name: "Ana L.", text: "Recebi na hora. Suporte excelente. Recomendo!" },
-            ].map((review, i) => (
-              <Card key={i}>
-                <CardContent className="pt-6">
-                  <div className="flex gap-1 mb-2 justify-center">
-                    {[...Array(5)].map((_, i) => (
-                      <span key={i} className="text-yellow-500">★</span>
-                    ))}
-                  </div>
-                  <p className="text-sm text-muted-foreground italic mb-2">"{review.text}"</p>
-                  <p className="text-sm font-bold">- {review.name}</p>
-                </CardContent>
-              </Card>
-            ))}
+            {/* Depoimentos */}
+            <Card className="border border-border/50 bg-card/50">
+              <CardContent className="p-6">
+                <h4 className="font-bold text-sm text-muted-foreground uppercase tracking-wider mb-4">
+                  O que nossos clientes dizem:
+                </h4>
+                <div className="space-y-4">
+                  {[
+                    { name: "Maria Silva", role: "Empresária", text: "Organizei toda minha empresa em 1 semana! As planilhas são profissionais e muito fáceis de usar." },
+                    { name: "João Santos", role: "Contador", text: "Economizei mais de R$ 5.000 em consultoria. Melhor investimento que já fiz!" }
+                  ].map((review, i) => (
+                    <div key={i} className="p-4 bg-card rounded-lg border border-border/30">
+                      <div className="flex gap-0.5 mb-2">
+                        {[...Array(5)].map((_, j) => (
+                          <Star key={j} className="w-4 h-4 text-yellow-500 fill-yellow-500" />
+                        ))}
+                      </div>
+                      <p className="text-sm text-muted-foreground italic mb-2">"{review.text}"</p>
+                      <div className="text-sm">
+                        <p className="font-bold text-foreground">- {review.name}</p>
+                        <p className="text-xs text-muted-foreground">{review.role}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
           </div>
         </div>
       </div>
