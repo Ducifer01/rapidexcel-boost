@@ -19,24 +19,36 @@
 - ✅ `/dashboard` - Área de membros com downloads
 - ✅ `/success` - Atualizada para redirecionar para login
 
-### 4. **Segurança Implementada**
+### 4. **Sistema de Downloads com Links Externos**
+
+#### Solução Implementada:
+Como os arquivos ZIP são muito grandes para o Supabase Storage, implementamos um sistema usando **links externos** (Google Drive, Dropbox, etc):
+
+- ✅ Tabela `product_downloads` criada para armazenar links de download
+- ✅ Edge function `verify-product-access` busca o link do banco de dados
+- ✅ Sistema verifica acesso antes de liberar o link
+- ✅ Logs de download registrados com IP
+
+### 5. **Segurança Implementada**
 
 #### RLS Policies Fortes:
 - ✅ Usuários só veem suas próprias compras aprovadas
 - ✅ Verificação de `auth.uid() = auth_user_id` AND `payment_status = 'approved'`
 - ✅ Função de segurança `user_has_product_access()` para verificar acesso
+- ✅ Apenas service role pode gerenciar links de download
 
 #### Tabelas:
 - ✅ `purchases` - adicionados campos `auth_user_id` e `password_hash`
 - ✅ `download_logs` - registra todos os downloads com IP
-- ✅ RLS habilitado em todas as tabelas, incluindo `mercadopago_notifications`
+- ✅ `product_downloads` - armazena links externos de forma segura
+- ✅ RLS habilitado em todas as tabelas
 
 #### Edge Functions:
 - ✅ `create-payment` - cria compra e guarda hash da senha
 - ✅ `payment-webhook` - cria usuário auth automaticamente ao aprovar pagamento
-- ✅ `verify-product-access` - verifica se usuário tem acesso antes de liberar download
+- ✅ `verify-product-access` - verifica acesso + busca link + registra download
 
-### 5. **Fluxo Completo Funcionando**
+### 6. **Fluxo Completo Funcionando**
 
 ```
 1. Usuário preenche checkout (nome, email, CPF, senha)
@@ -61,87 +73,66 @@
     ↓
 11. Clica em "Baixar Arquivo"
     ↓
-12. Sistema verifica acesso + registra download
+12. Sistema verifica acesso + busca link + registra download
+    ↓
+13. Usuário é redirecionado para o link de download externo
 ```
 
 ---
 
-## ❌ O QUE AINDA PRECISA SER FEITO
+## 📋 PRÓXIMOS PASSOS - CONFIGURAR LINKS DE DOWNLOAD
 
-### 1. **Adicionar Arquivos para Download**
+### 1. **Fazer Upload dos Arquivos para Google Drive/Dropbox**
 
-Os arquivos .zip precisam ser adicionados ao projeto. Você tem 2 opções:
+**Opções recomendadas:**
+- Google Drive
+- Dropbox
+- OneDrive
+- Mega.nz
+- Qualquer serviço de hospedagem de arquivos
 
-#### Opção A: Storage do Supabase (RECOMENDADO - mais seguro)
+### 2. **Obter Links Diretos de Download**
+
+#### Para Google Drive:
+1. Faça upload do arquivo no Google Drive
+2. Clique com botão direito > "Obter link"
+3. Configure para "Qualquer pessoa com o link"
+4. Copie o ID do arquivo (está na URL: `https://drive.google.com/file/d/ID_DO_ARQUIVO/view`)
+5. Transforme em link direto: `https://drive.google.com/uc?export=download&id=ID_DO_ARQUIVO`
+
+#### Para Dropbox:
+1. Faça upload do arquivo
+2. Clique em "Compartilhar" > "Criar link"
+3. Copie o link e troque `dl=0` por `dl=1` no final da URL
+4. Exemplo: `https://www.dropbox.com/s/abc123/arquivo.zip?dl=1`
+
+### 3. **Atualizar os Links no Banco de Dados**
+
+Acesse o SQL Editor do Supabase e execute:
+
 ```sql
--- Criar bucket para produtos
-INSERT INTO storage.buckets (id, name, public)
-VALUES ('products', 'products', false);
+-- Atualizar link do produto "Planilhas 6k Pro"
+UPDATE public.product_downloads
+SET download_url = 'SEU_LINK_DIRETO_AQUI_1'
+WHERE product_name = 'Planilhas 6k Pro - 6.000 Planilhas Excel';
 
--- Criar política de acesso
-CREATE POLICY "Users can download purchased products"
-ON storage.objects FOR SELECT
-USING (
-  bucket_id = 'products' 
-  AND auth.uid() IN (
-    SELECT auth_user_id FROM purchases 
-    WHERE payment_status = 'approved'
-    AND products @> ARRAY[name]
-  )
-);
+-- Atualizar link do produto "Dashboards+Bônus"
+UPDATE public.product_downloads
+SET download_url = 'SEU_LINK_DIRETO_AQUI_2'
+WHERE product_name = 'Dashboards+Bônus - Planner + 50 Dashboards';
 ```
 
-**Passos:**
-1. Fazer upload dos arquivos ZIP:
-   - `Planilhas 6k Pro - 6.000 Planilhas Excel.zip`
-   - `Dashboards+Bônus - Planner + 50 Dashboards.zip`
-2. Atualizar `verify-product-access` para gerar signed URLs
-3. Usuário baixa via signed URL (válido por 1 hora)
+**IMPORTANTE:** 
+- Certifique-se de que os links sejam **links diretos de download**
+- Teste os links antes de atualizar no banco
+- Os links devem funcionar sem necessidade de login
 
-#### Opção B: Arquivos no projeto (public/) - mais simples, menos seguro
-```
-public/
-  downloads/
-    planilhas-6k-pro.zip
-    dashboards-bonus.zip
-```
+### 4. **Verificar se Está Funcionando**
 
-**Desvantagens:**
-- Qualquer pessoa com o link direto pode baixar
-- Não há controle de acesso real
-- Mais fácil de piratear
-
-### 2. **Atualizar Edge Function para Downloads**
-
-Se escolher Opção A (Storage):
-```typescript
-// Em verify-product-access/index.ts
-const { data: signedUrl } = await supabaseAdmin.storage
-  .from('products')
-  .createSignedUrl(`${product_name}.zip`, 3600); // 1 hora
-
-return {
-  has_access: true,
-  download_url: signedUrl.signedUrl
-};
-```
-
-Se escolher Opção B (public/):
-```typescript
-// Em verify-product-access/index.ts
-return {
-  has_access: true,
-  download_url: `/downloads/${product_name.toLowerCase().replace(/\s/g, '-')}.zip`
-};
-```
-
-### 3. **Melhorias Opcionais**
-
-- [ ] Limite de downloads por compra (ex: 5 downloads)
-- [ ] Rate limiting (prevenir abuso)
-- [ ] Resetar senha (caso usuário esqueça)
-- [ ] Suporte ao cliente (chat/email)
-- [ ] Analytics de downloads
+1. Faça uma compra de teste
+2. Faça login no `/dashboard`
+3. Clique em "Baixar Arquivo"
+4. O download deve iniciar automaticamente
 
 ---
 
@@ -154,8 +145,9 @@ return {
 3. **Auth Required**: Dashboard só acessa com token JWT válido
 4. **Payment Validation**: Apenas `payment_status = 'approved'`
 5. **User-Purchase Link**: Verificação de `auth_user_id`
-6. **Download Logs**: Rastreamento de todos os downloads
-7. **Service Role**: Apenas backend pode criar usuários
+6. **Download Logs**: Rastreamento de todos os downloads com IP
+7. **Service Role**: Apenas backend pode acessar links reais
+8. **Links Privados**: Links armazenados em tabela com RLS restritivo
 
 ### Proteção Contra Ataques:
 
@@ -163,16 +155,28 @@ return {
 - ❌ **Não é possível** acessar produtos não comprados
 - ❌ **Não é possível** burlar RLS via cliente
 - ❌ **Não é possível** ver compras de outros usuários
+- ❌ **Não é possível** ver links de download diretos (apenas edge function)
 - ❌ **Não é possível** injetar SQL (tudo parameterizado)
+
+### Vantagens da Solução com Links Externos:
+
+✅ **Sem limite de tamanho** - arquivos podem ter qualquer tamanho
+✅ **Sem custo adicional** - Google Drive/Dropbox são gratuitos
+✅ **Alta velocidade** - CDNs globais dessas plataformas
+✅ **Seguro** - links só são revelados após verificação de acesso
+✅ **Fácil atualização** - basta atualizar o link no banco
 
 ---
 
-## 🎯 PRÓXIMOS PASSOS
+## 🎯 MELHORIAS OPCIONAIS (FUTURO)
 
-1. **URGENTE**: Adicionar arquivos .zip (escolher Opção A ou B)
-2. Atualizar `verify-product-access` com download real
-3. Testar fluxo completo end-to-end
-4. Monitorar logs de webhook e downloads
+- [ ] Limite de downloads por compra (ex: 5 downloads)
+- [ ] Rate limiting (prevenir abuso)
+- [ ] Resetar senha (caso usuário esqueça)
+- [ ] Suporte ao cliente (chat/email)
+- [ ] Analytics de downloads
+- [ ] Expiração de links após X dias
+- [ ] Versioning de produtos (v1, v2, etc)
 
 ---
 
@@ -183,10 +187,12 @@ return {
 - RLS garante que cada usuário só vê seus dados
 - Webhook é idempotente (pode ser chamado múltiplas vezes)
 - Downloads são registrados para auditoria
+- Links externos permitem arquivos de qualquer tamanho
 
 ## 🔗 Links Úteis
 
+- SQL Editor: https://supabase.com/dashboard/project/ezymoplfpsjpklskgodn/sql/new
+- Tabela product_downloads: https://supabase.com/dashboard/project/ezymoplfpsjpklskgodn/editor/28609
 - Edge Functions: https://supabase.com/dashboard/project/ezymoplfpsjpklskgodn/functions
 - Auth Users: https://supabase.com/dashboard/project/ezymoplfpsjpklskgodn/auth/users
-- Storage: https://supabase.com/dashboard/project/ezymoplfpsjpklskgodn/storage/buckets
 - Database: https://supabase.com/dashboard/project/ezymoplfpsjpklskgodn/editor

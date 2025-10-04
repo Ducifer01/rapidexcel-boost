@@ -78,32 +78,23 @@ serve(async (req) => {
       ip_address: req.headers.get('x-forwarded-for') || 'unknown',
     });
 
-    // Mapear nome do produto para nome do arquivo
-    const fileMap: { [key: string]: string } = {
-      'Planilhas 6k Pro - 6.000 Planilhas Excel': 'planilhas-6k-pro.zip',
-      'Dashboards+Bônus - Planner + 50 Dashboards': 'dashboards-bonus.zip'
-    };
+    // Buscar URL de download da tabela
+    const { data: productData, error: productError } = await supabaseAdmin
+      .from('product_downloads')
+      .select('download_url')
+      .eq('product_name', product_name)
+      .single();
 
-    const fileName = fileMap[product_name];
-    if (!fileName) {
-      throw new Error('Produto não encontrado');
-    }
-
-    // Gerar signed URL válida por 1 hora
-    const { data: signedUrl, error: signedUrlError } = await supabaseAdmin.storage
-      .from('products')
-      .createSignedUrl(fileName, 3600);
-
-    if (signedUrlError) {
-      console.error('Erro ao gerar signed URL:', signedUrlError);
-      throw new Error('Erro ao gerar link de download');
+    if (productError || !productData) {
+      console.error('Erro ao buscar link de download:', productError);
+      throw new Error('Link de download não encontrado');
     }
 
     return new Response(
       JSON.stringify({
         has_access: true,
         message: 'Acesso concedido',
-        download_url: signedUrl.signedUrl
+        download_url: productData.download_url
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },

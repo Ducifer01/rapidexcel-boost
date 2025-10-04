@@ -68,6 +68,30 @@ export type Database = {
         }
         Relationships: []
       }
+      product_downloads: {
+        Row: {
+          created_at: string | null
+          download_url: string
+          id: string
+          product_name: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          download_url: string
+          id?: string
+          product_name: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          download_url?: string
+          id?: string
+          product_name?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       purchases: {
         Row: {
           auth_user_id: string | null
