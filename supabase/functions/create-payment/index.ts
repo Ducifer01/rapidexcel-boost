@@ -18,8 +18,8 @@ serve(async (req) => {
     // VALIDAÇÃO DE SEGURANÇA: Preços são definidos NO SERVIDOR
     // NUNCA confiar em preços vindos do frontend!
     const VALID_PRODUCTS = {
-      'pack_1': { title: 'Pack 1 - 6.000 Planilhas Excel', price: 12.99 },
-      'pack_2': { title: 'Pack 2 - Planner + 50 Dashboards', price: 12.99 },
+      'pack_1': { title: 'Planilhas 6k Pro - 6.000 Planilhas Excel', price: 12.99 },
+      'pack_2': { title: 'Dashboards+Bônus - Planner + 50 Dashboards', price: 12.99 },
     };
 
     // Validar IDs dos produtos

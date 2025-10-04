@@ -30,6 +30,9 @@ const Checkout = () => {
   const pack2Price = 12.99;
   const totalPrice = hasUpsell ? pack1Price + pack2Price : pack1Price;
 
+  const pack1Name = "Planilhas 6k Pro";
+  const pack2Name = "Dashboards+Bônus";
+
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
     if (errors[field]) {
@@ -114,97 +117,80 @@ const Checkout = () => {
       {/* Modal Upsell */}
       {showUpsell && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-          <Card className="max-w-2xl w-full border-4 border-secondary shadow-2xl">
-            <CardHeader className="text-center pb-4 relative">
-              <Badge className="mb-4 mx-auto bg-secondary text-secondary-foreground w-fit text-base px-6 py-2">
-                <Sparkles className="w-4 h-4 mr-2" />
-                OFERTA EXCLUSIVA!
+          <Card className="max-w-md w-full border-2 border-secondary shadow-2xl">
+            <CardHeader className="text-center pb-3 relative">
+              <Badge className="mb-3 mx-auto bg-secondary text-secondary-foreground w-fit text-sm px-4 py-1.5">
+                🎁 OFERTA EXCLUSIVA!
               </Badge>
-              <CardTitle className="text-3xl md:text-4xl font-bold mb-2">
-                Espere! Oferta Única 🎁
+              <CardTitle className="text-2xl font-bold mb-2">
+                Espere! Oferta Única
               </CardTitle>
-              <p className="text-muted-foreground text-lg">
+              <p className="text-muted-foreground text-sm">
                 Adicione o Pack Premium por apenas <span className="text-secondary font-bold">R$ 12,99</span>
               </p>
             </CardHeader>
-            <CardContent className="space-y-6 pb-8">
-              <div className="bg-gradient-to-br from-secondary/10 to-transparent rounded-xl p-6 border-2 border-secondary/20">
-                <h3 className="text-2xl font-bold mb-4 text-center">
-                  Pack 2: Planner + 50 Dashboards
+            <CardContent className="space-y-4 pb-6">
+              <div className="bg-gradient-to-br from-secondary/10 to-transparent rounded-lg p-4 border border-secondary/20">
+                <h3 className="text-xl font-bold mb-3 text-center">
+                  {pack2Name}
                 </h3>
-                <div className="grid md:grid-cols-2 gap-4 mb-4">
-                  <div className="space-y-3">
-                    <div className="flex items-start gap-2">
-                      <Check className="w-5 h-5 text-secondary mt-0.5 flex-shrink-0" />
-                      <span className="text-sm">Planner Financeiro Completo</span>
-                    </div>
-                    <div className="flex items-start gap-2">
-                      <Check className="w-5 h-5 text-secondary mt-0.5 flex-shrink-0" />
-                      <span className="text-sm">+50 Dashboards Premium</span>
-                    </div>
-                    <div className="flex items-start gap-2">
-                      <Check className="w-5 h-5 text-secondary mt-0.5 flex-shrink-0" />
-                      <span className="text-sm">Controle financeiro automático</span>
-                    </div>
+                <div className="space-y-2 mb-4">
+                  <div className="flex items-start gap-2">
+                    <Check className="w-4 h-4 text-secondary mt-0.5 flex-shrink-0" />
+                    <span className="text-sm">Planner Financeiro Completo</span>
                   </div>
-                  <div className="space-y-3">
-                    <div className="flex items-start gap-2">
-                      <Check className="w-5 h-5 text-secondary mt-0.5 flex-shrink-0" />
-                      <span className="text-sm">Análises de vendas e RH</span>
-                    </div>
-                    <div className="flex items-start gap-2">
-                      <Check className="w-5 h-5 text-secondary mt-0.5 flex-shrink-0" />
-                      <span className="text-sm">Relatórios profissionais</span>
-                    </div>
-                    <div className="flex items-start gap-2">
-                      <Check className="w-5 h-5 text-secondary mt-0.5 flex-shrink-0" />
-                      <span className="text-sm">Acesso vitalício</span>
-                    </div>
+                  <div className="flex items-start gap-2">
+                    <Check className="w-4 h-4 text-secondary mt-0.5 flex-shrink-0" />
+                    <span className="text-sm">+50 Dashboards Premium</span>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <Check className="w-4 h-4 text-secondary mt-0.5 flex-shrink-0" />
+                    <span className="text-sm">Controle financeiro automático</span>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <Check className="w-4 h-4 text-secondary mt-0.5 flex-shrink-0" />
+                    <span className="text-sm">Acesso vitalício</span>
                   </div>
                 </div>
 
-                <div className="bg-white dark:bg-card rounded-lg p-4 text-center">
-                  <p className="text-sm text-muted-foreground mb-2">
+                <div className="bg-white dark:bg-card rounded-lg p-3 text-center">
+                  <p className="text-xs text-muted-foreground mb-1">
                     <span className="line-through">Valor normal: R$ 25,00</span>
                   </p>
-                  <p className="text-4xl font-bold text-secondary mb-2">
+                  <p className="text-3xl font-bold text-secondary mb-1">
                     R$ 12,99
                   </p>
-                  <Badge className="bg-destructive text-destructive-foreground">
+                  <Badge className="bg-destructive text-destructive-foreground text-xs">
                     48% OFF - ECONOMIZE R$ 12,01
                   </Badge>
                 </div>
               </div>
 
-              <div className="bg-destructive/10 border-2 border-destructive/30 rounded-lg p-4 text-center">
-                <p className="font-bold text-destructive mb-1">⚠️ Esta oferta não se repete!</p>
-                <p className="text-sm text-muted-foreground">
-                  Se sair desta página, perderá este desconto especial para sempre
+              <div className="bg-destructive/10 border border-destructive/30 rounded-lg p-3 text-center">
+                <p className="font-bold text-destructive text-sm mb-0.5">⚠️ Esta oferta não se repete!</p>
+                <p className="text-xs text-muted-foreground">
+                  Se sair desta página, perderá este desconto especial
                 </p>
               </div>
 
-              <div className="space-y-3">
+              <div className="space-y-2">
                 <Button 
                   size="lg" 
-                  className="w-full bg-gradient-to-r from-secondary to-secondary-glow hover:opacity-90 text-lg py-6 text-white"
+                  className="w-full bg-gradient-to-r from-secondary to-secondary-glow hover:opacity-90 text-white"
                   onClick={handleAddUpsell}
                 >
-                  <Sparkles className="w-5 h-5 mr-2" />
-                  SIM! Quero Adicionar o Pack 2
+                  <Sparkles className="w-4 h-4 mr-2" />
+                  SIM! Quero Adicionar
                 </Button>
                 <Button 
                   variant="ghost" 
-                  size="lg" 
+                  size="sm" 
                   className="w-full"
                   onClick={handleSkipUpsell}
                 >
-                  Não, quero apenas o Pack 1
+                  Não, quero apenas {pack1Name}
                 </Button>
               </div>
-
-              <p className="text-xs text-center text-muted-foreground">
-                Mais de 1.200 pessoas adicionaram esta oferta hoje
-              </p>
             </CardContent>
           </Card>
         </div>
@@ -340,7 +326,7 @@ const Checkout = () => {
                   {/* Pack 1 */}
                   <div className="flex justify-between items-start pb-4 border-b">
                     <div className="flex-1">
-                      <h3 className="font-bold">Pack 1</h3>
+                      <h3 className="font-bold">{pack1Name}</h3>
                       <p className="text-sm text-muted-foreground">6.000 Planilhas Excel</p>
                     </div>
                     <p className="font-bold">R$ 12,99</p>
@@ -353,7 +339,7 @@ const Checkout = () => {
                         <Badge className="mb-2 bg-secondary text-secondary-foreground">
                           ADICIONADO!
                         </Badge>
-                        <h3 className="font-bold">Pack 2</h3>
+                        <h3 className="font-bold">{pack2Name}</h3>
                         <p className="text-sm text-muted-foreground">Planner + 50 Dashboards</p>
                       </div>
                       <div className="text-right">

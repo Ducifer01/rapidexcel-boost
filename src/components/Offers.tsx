@@ -33,7 +33,7 @@ const Offers = () => {
               <Badge className="mb-4 mx-auto bg-primary text-primary-foreground w-fit">
                 OFERTA ESPECIAL
               </Badge>
-              <h3 className="text-2xl md:text-3xl font-bold mb-2">Pack Completo</h3>
+              <h3 className="text-2xl md:text-3xl font-bold mb-2">Planilhas 6k Pro</h3>
               <p className="text-muted-foreground mb-6">6.000 Planilhas Excel Profissionais</p>
               <div className="space-y-2">
                 <p className="text-5xl md:text-6xl font-bold text-primary">
