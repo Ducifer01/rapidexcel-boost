@@ -30,7 +30,20 @@ const Footer = () => {
           </div>
         </div>
 
-        <div className="border-t border-background/20 pt-8 text-center">
+        <div className="border-t border-background/20 pt-8 text-center space-y-4">
+          <div className="flex flex-wrap justify-center gap-4 text-sm text-background/80">
+            <a href="/termos" className="hover:text-primary transition-colors">
+              Termos de Serviço
+            </a>
+            <span>•</span>
+            <a href="/politica" className="hover:text-primary transition-colors">
+              Política de Privacidade
+            </a>
+            <span>•</span>
+            <a href="https://instagram.com/planilhaexpress_ofc" target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors">
+              Instagram
+            </a>
+          </div>
           <p className="text-sm text-background/80">
             © 2025 PlanilhaExpress. Todos os direitos reservados.
           </p>

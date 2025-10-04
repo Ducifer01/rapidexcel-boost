@@ -136,7 +136,7 @@ const Offers = () => {
               </div>
               <Button 
                 size="lg" 
-                className="w-full bg-gradient-to-r from-secondary to-secondary-glow hover:opacity-90 text-lg py-6 shadow-[0_10px_40px_-10px_hsl(var(--secondary)/0.5)] hover:shadow-[0_15px_50px_-10px_hsl(var(--secondary)/0.6)] transition-all duration-300"
+                className="w-full bg-gradient-to-r from-yellow-700 to-yellow-600 hover:opacity-90 text-lg py-6 shadow-[0_10px_40px_-10px_rgba(161,98,7,0.5)] hover:shadow-[0_15px_50px_-10px_rgba(161,98,7,0.6)] transition-all duration-300"
               >
                 Adicionar Pack 2
               </Button>
@@ -168,7 +168,7 @@ const Offers = () => {
                 size="lg" 
                 className="bg-gradient-to-r from-accent to-accent/80 hover:opacity-90 text-lg px-12 py-6 shadow-[0_10px_40px_-10px_hsl(var(--accent)/0.5)] hover:shadow-[0_15px_50px_-10px_hsl(var(--accent)/0.6)] transition-all duration-300 whitespace-normal h-auto leading-tight"
               >
-                Quero o Combo Completo Agora!
+                Aproveitar Promoção
               </Button>
           </CardContent>
         </Card>
