@@ -78,16 +78,32 @@ serve(async (req) => {
       ip_address: req.headers.get('x-forwarded-for') || 'unknown',
     });
 
-    // TODO: Quando os arquivos estiverem no Storage, gerar signed URL aqui
-    // const { data: signedUrl } = await supabaseAdmin.storage
-    //   .from('products')
-    //   .createSignedUrl(`${product_name}.zip`, 3600); // 1 hora
+    // Mapear nome do produto para nome do arquivo
+    const fileMap: { [key: string]: string } = {
+      'Planilhas 6k Pro - 6.000 Planilhas Excel': 'planilhas-6k-pro.zip',
+      'Dashboards+Bônus - Planner + 50 Dashboards': 'dashboards-bonus.zip'
+    };
+
+    const fileName = fileMap[product_name];
+    if (!fileName) {
+      throw new Error('Produto não encontrado');
+    }
+
+    // Gerar signed URL válida por 1 hora
+    const { data: signedUrl, error: signedUrlError } = await supabaseAdmin.storage
+      .from('products')
+      .createSignedUrl(fileName, 3600);
+
+    if (signedUrlError) {
+      console.error('Erro ao gerar signed URL:', signedUrlError);
+      throw new Error('Erro ao gerar link de download');
+    }
 
     return new Response(
       JSON.stringify({
         has_access: true,
         message: 'Acesso concedido',
-        // download_url: signedUrl?.signedUrl
+        download_url: signedUrl.signedUrl
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },

@@ -75,15 +75,14 @@ const Dashboard = () => {
 
       if (error) throw error;
 
-      if (data.has_access) {
-        // Redirecionar para o arquivo (quando estiver disponível)
+      if (data.has_access && data.download_url) {
         toast({
           title: "Download iniciado!",
           description: `O download de ${productName} será iniciado em breve.`,
         });
         
-        // TODO: Implementar download real quando os arquivos estiverem no storage
-        // window.location.href = data.download_url;
+        // Iniciar download via signed URL
+        window.location.href = data.download_url;
       } else {
         toast({
           title: "Acesso negado",
