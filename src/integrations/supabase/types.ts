@@ -14,6 +14,30 @@ export type Database = {
   }
   public: {
     Tables: {
+      download_logs: {
+        Row: {
+          downloaded_at: string | null
+          id: string
+          ip_address: string | null
+          product_name: string
+          user_id: string
+        }
+        Insert: {
+          downloaded_at?: string | null
+          id?: string
+          ip_address?: string | null
+          product_name: string
+          user_id: string
+        }
+        Update: {
+          downloaded_at?: string | null
+          id?: string
+          ip_address?: string | null
+          product_name?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       mercadopago_notifications: {
         Row: {
           id: string
@@ -46,8 +70,10 @@ export type Database = {
       }
       purchases: {
         Row: {
+          auth_user_id: string | null
           created_at: string | null
           id: string
+          password_hash: string | null
           payment_id: string
           payment_status: string
           products: string[]
@@ -56,8 +82,10 @@ export type Database = {
           user_email: string
         }
         Insert: {
+          auth_user_id?: string | null
           created_at?: string | null
           id?: string
+          password_hash?: string | null
           payment_id: string
           payment_status: string
           products: string[]
@@ -66,8 +94,10 @@ export type Database = {
           user_email: string
         }
         Update: {
+          auth_user_id?: string | null
           created_at?: string | null
           id?: string
+          password_hash?: string | null
           payment_id?: string
           payment_status?: string
           products?: string[]
@@ -106,7 +136,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      user_has_product_access: {
+        Args: { _product_name: string; _user_id: string }
+        Returns: boolean
+      }
     }
     Enums: {
       [_ in never]: never
