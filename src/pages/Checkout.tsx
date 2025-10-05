@@ -71,6 +71,11 @@ const Checkout = () => {
     return () => clearInterval(timer);
   }, []);
 
+  // Garantir que a página comece do topo
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
+
   // Formatar tempo restante
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -161,7 +166,7 @@ const Checkout = () => {
   const randomNotification = notifications[Math.floor(Math.random() * notifications.length)];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 py-8 px-4">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 py-4 md:py-8 px-3 md:px-4">
       {/* Notificação de compra em tempo real */}
       {showNotification && (
         <div className="fixed bottom-6 left-6 z-50 animate-in slide-in-from-left duration-500">
@@ -250,16 +255,6 @@ const Checkout = () => {
                         disabled={loading}
                       />
                       {errors.email && <p className="text-sm text-destructive mt-1.5 flex items-center gap-1"><AlertCircle className="w-3 h-3" />{errors.email}</p>}
-                      <div className="mt-2 p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg">
-                        <p className="text-xs text-amber-600 dark:text-amber-400 font-medium flex items-start gap-2">
-                          <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
-                          <span>
-                            <strong>ATENÇÃO:</strong> Seu acesso será enviado para este e-mail. 
-                            Confira com cuidado antes de continuar. Se digitar errado, não receberá o acesso 
-                            e precisará entrar em contato com o suporte apresentando o comprovante de pagamento.
-                          </span>
-                        </p>
-                      </div>
                     </div>
 
                     <div>
@@ -377,7 +372,7 @@ const Checkout = () => {
                     <div className="ml-9 flex items-center gap-3 flex-wrap">
                       <span className="text-sm text-muted-foreground line-through">De R$ {pack2OriginalPrice.toFixed(2)}</span>
                       <span className="text-3xl font-black text-secondary">R$ {pack2Price.toFixed(2).replace('.', ',')}</span>
-                      <Badge className="bg-gradient-to-r from-secondary to-secondary-glow text-white text-xs px-3 py-1.5 shadow-lg">
+                      <Badge className="bg-red-600 hover:bg-red-700 text-white text-xs px-3 py-1.5 shadow-lg border-0">
                         48% OFF
                       </Badge>
                     </div>
@@ -460,7 +455,7 @@ const Checkout = () => {
                     <div className="flex items-center gap-3 pt-4 border-t border-border/50">
                       <span className="text-sm text-muted-foreground line-through">De R$ {pack1OriginalPrice.toFixed(2)}</span>
                       <span className="text-3xl font-black text-primary">R$ {pack1Price.toFixed(2).replace('.', ',')}</span>
-                      <Badge className="bg-gradient-to-r from-destructive to-orange-600 text-white text-xs px-3 py-1.5 shadow-lg">
+                      <Badge className="bg-red-600 hover:bg-red-700 text-white text-xs px-3 py-1.5 shadow-lg border-0">
                         93% OFF
                       </Badge>
                     </div>
@@ -489,7 +484,7 @@ const Checkout = () => {
                       <div className="flex items-center gap-3 pt-4 border-t border-border/50">
                         <span className="text-sm text-muted-foreground line-through">De R$ {pack2OriginalPrice.toFixed(2)}</span>
                         <span className="text-3xl font-black text-secondary">R$ {pack2Price.toFixed(2).replace('.', ',')}</span>
-                        <Badge className="bg-gradient-to-r from-secondary to-secondary-glow text-white text-xs px-3 py-1.5 shadow-lg">
+                        <Badge className="bg-red-600 hover:bg-red-700 text-white text-xs px-3 py-1.5 shadow-lg border-0">
                           48% OFF
                         </Badge>
                       </div>
