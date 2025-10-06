@@ -35,6 +35,7 @@ const Checkout = () => {
   const [cardToken, setCardToken] = useState<string | null>(null);
   const [showPaymentForm, setShowPaymentForm] = useState(false);
   const [publicKey, setPublicKey] = useState<string | null>(null);
+  const [paymentMethod, setPaymentMethod] = useState<'credit' | 'debit' | 'pix' | null>(null);
 
   // Buscar Public Key do Supabase
   useEffect(() => {
@@ -127,49 +128,94 @@ const Checkout = () => {
       return;
     }
 
-    // Mostrar formulário de pagamento
-    setShowPaymentForm(true);
-  };
-
-  const handleFinalizePayment = async () => {
-    if (!cardToken) {
+    if (!paymentMethod) {
       toast({
-        title: "Dados do cartão inválidos",
-        description: "Verifique os dados do cartão e tente novamente.",
+        title: "Selecione o método de pagamento",
+        description: "Escolha PIX, Cartão de Crédito ou Débito",
         variant: "destructive",
       });
       return;
     }
 
+    // Mostrar formulário de pagamento
+    setShowPaymentForm(true);
+  };
+
+  const handleFinalizePayment = async () => {
     setLoading(true);
 
     try {
       const productIds = hasUpsell ? ['pack_1', 'pack_2'] : ['pack_1'];
 
-      const { data, error } = await supabase.functions.invoke('process-payment', {
-        body: {
-          product_ids: productIds,
-          password: formData.password,
-          card_token: cardToken,
-          payer: {
-            email: formData.email,
-            name: formData.name,
-            identification: {
-              type: 'CPF',
-              number: formData.cpf.replace(/\D/g, ''),
+      // PIX - redireciona para checkout MercadoPago
+      if (paymentMethod === 'pix') {
+        const { data, error } = await supabase.functions.invoke('create-payment', {
+          body: {
+            product_ids: productIds,
+            payer: {
+              email: formData.email,
+              name: formData.name,
+              identification: {
+                type: 'CPF',
+                number: formData.cpf.replace(/\D/g, ''),
+              },
+            },
+            password: formData.password,
+            back_urls: {
+              success: `${window.location.origin}/success`,
+              failure: `${window.location.origin}/failure`,
+              pending: `${window.location.origin}/pending`,
             },
           },
-        },
-      });
+        });
 
-      if (error) throw error;
+        if (error) throw error;
+        
+        if (data?.init_point) {
+          window.location.href = data.init_point;
+        } else {
+          throw new Error('URL de pagamento não recebida');
+        }
+        return;
+      }
 
-      if (data?.payment_id && data?.status === 'approved') {
-        navigate('/success');
-      } else if (data?.status === 'pending') {
-        navigate('/pending');
-      } else {
-        navigate('/failure');
+      // Cartão de crédito ou débito - pagamento direto
+      if (paymentMethod === 'credit' || paymentMethod === 'debit') {
+        if (!cardToken) {
+          toast({
+            title: "Dados do cartão inválidos",
+            description: "Verifique os dados do cartão e tente novamente.",
+            variant: "destructive",
+          });
+          setLoading(false);
+          return;
+        }
+
+        const { data, error } = await supabase.functions.invoke('process-payment', {
+          body: {
+            product_ids: productIds,
+            password: formData.password,
+            card_token: cardToken,
+            payer: {
+              email: formData.email,
+              name: formData.name,
+              identification: {
+                type: 'CPF',
+                number: formData.cpf.replace(/\D/g, ''),
+              },
+            },
+          },
+        });
+
+        if (error) throw error;
+
+        if (data?.payment_id && data?.status === 'approved') {
+          navigate('/success');
+        } else if (data?.status === 'pending' || data?.status === 'in_process') {
+          navigate('/pending');
+        } else {
+          navigate('/failure');
+        }
       }
     } catch (error) {
       console.error('Erro no checkout:', error);
@@ -365,17 +411,72 @@ const Checkout = () => {
                     </div>
                   </div>
 
-                  {/* Botão */}
-                  {!showPaymentForm ? (
-                    <Button
-                      type="submit"
-                      className="w-full bg-gradient-to-r from-primary via-primary-glow to-primary hover:opacity-90 text-lg md:text-xl py-6 md:py-8 font-bold shadow-lg"
-                      disabled={loading}
-                    >
-                      <Lock className="w-5 h-5 md:w-6 md:h-6 mr-2" />
-                      CONTINUAR PARA PAGAMENTO
-                    </Button>
-                  ) : null}
+                  {/* Seleção de Método de Pagamento */}
+                  {!showPaymentForm && (
+                    <div className="space-y-4">
+                      <h3 className="text-lg md:text-xl font-bold text-center text-foreground">
+                        Escolha como pagar
+                      </h3>
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <button
+                          type="button"
+                          onClick={() => setPaymentMethod('pix')}
+                          className={`p-4 rounded-lg border-2 transition-all ${
+                            paymentMethod === 'pix' 
+                              ? 'border-primary bg-primary/10 shadow-lg scale-105' 
+                              : 'border-border hover:border-primary/50'
+                          }`}
+                        >
+                          <div className="text-center space-y-2">
+                            <div className="text-3xl">📱</div>
+                            <div className="font-bold">PIX</div>
+                            <div className="text-xs text-muted-foreground">Aprovação imediata</div>
+                          </div>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => setPaymentMethod('credit')}
+                          className={`p-4 rounded-lg border-2 transition-all ${
+                            paymentMethod === 'credit' 
+                              ? 'border-primary bg-primary/10 shadow-lg scale-105' 
+                              : 'border-border hover:border-primary/50'
+                          }`}
+                        >
+                          <div className="text-center space-y-2">
+                            <div className="text-3xl">💳</div>
+                            <div className="font-bold">Crédito</div>
+                            <div className="text-xs text-muted-foreground">À vista</div>
+                          </div>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => setPaymentMethod('debit')}
+                          className={`p-4 rounded-lg border-2 transition-all ${
+                            paymentMethod === 'debit' 
+                              ? 'border-primary bg-primary/10 shadow-lg scale-105' 
+                              : 'border-border hover:border-primary/50'
+                          }`}
+                        >
+                          <div className="text-center space-y-2">
+                            <div className="text-3xl">💰</div>
+                            <div className="font-bold">Débito</div>
+                            <div className="text-xs text-muted-foreground">Pagamento à vista</div>
+                          </div>
+                        </button>
+                      </div>
+
+                      <Button
+                        type="submit"
+                        className="w-full bg-gradient-to-r from-primary via-primary-glow to-primary hover:opacity-90 text-lg md:text-xl py-6 md:py-8 font-bold shadow-lg"
+                        disabled={loading}
+                      >
+                        <Lock className="w-5 h-5 md:w-6 md:h-6 mr-2" />
+                        CONTINUAR PARA PAGAMENTO
+                      </Button>
+                    </div>
+                  )}
 
                   {/* Segurança */}
                   <div className="flex flex-wrap items-center justify-center gap-4 md:gap-6 text-xs md:text-sm text-muted-foreground pt-2">
@@ -401,7 +502,7 @@ const Checkout = () => {
                       <div className="p-2 bg-primary/10 rounded-lg">
                         <CreditCard className="w-5 h-5 text-primary" />
                       </div>
-                      Dados do Cartão
+                      {paymentMethod === 'pix' ? 'Pagamento PIX' : 'Dados do Cartão'}
                     </CardTitle>
                     <Badge variant="outline" className="text-xs">
                       Passo 2 de 2
@@ -410,32 +511,46 @@ const Checkout = () => {
                 </CardHeader>
                 
                 <CardContent className="p-4 md:p-6">
-                  {publicKey ? (
-                    <PaymentForm
-                      onCardTokenChange={setCardToken}
-                      disabled={loading}
-                      publicKey={publicKey}
-                    />
-                  ) : (
-                    <div className="flex items-center justify-center py-8">
-                      <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+                  {paymentMethod === 'pix' ? (
+                    <div className="text-center space-y-4 py-6">
+                      <div className="text-6xl">📱</div>
+                      <h3 className="text-xl font-bold text-foreground">
+                        Pagamento via PIX
+                      </h3>
+                      <p className="text-muted-foreground">
+                        Você será redirecionado para gerar o QR Code do PIX
+                      </p>
                     </div>
+                  ) : (
+                    <>
+                      {publicKey ? (
+                        <PaymentForm
+                          onCardTokenChange={setCardToken}
+                          disabled={loading}
+                          publicKey={publicKey}
+                        />
+                      ) : (
+                        <div className="flex items-center justify-center py-8">
+                          <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+                        </div>
+                      )}
+                    </>
                   )}
 
                   <Button
                     onClick={handleFinalizePayment}
                     className="w-full bg-gradient-to-r from-primary via-primary-glow to-primary hover:opacity-90 text-lg md:text-xl py-6 md:py-8 font-bold shadow-lg mt-6"
-                    disabled={loading || !cardToken}
+                    disabled={loading || (paymentMethod !== 'pix' && !cardToken)}
                   >
                     {loading ? (
                       <span className="flex items-center gap-2">
                         <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                        Processando pagamento...
+                        Processando...
                       </span>
                     ) : (
                       <>
                         <CreditCard className="w-5 h-5 md:w-6 md:h-6 mr-2" />
-                        FINALIZAR PAGAMENTO
+                        {paymentMethod === 'pix' ? 'GERAR PIX' : 'FINALIZAR PAGAMENTO'}
                       </>
                     )}
                   </Button>
