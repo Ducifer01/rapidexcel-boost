@@ -2,8 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Download, Package, Shield, LogOut, Loader2, AlertCircle, CheckCircle2 } from "lucide-react";
+import { Download, Package, LogOut, Loader2, AlertCircle, CheckCircle2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -161,16 +160,11 @@ const Dashboard = () => {
             {purchases.map((purchase) => (
               <Card key={purchase.id} className="border-2 border-border/50 shadow-xl">
                 <CardHeader className="border-b border-border/50">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <CardTitle className="text-2xl">Seus Produtos</CardTitle>
-                      <CardDescription>
-                        Compra realizada em {new Date(purchase.created_at).toLocaleDateString('pt-BR')}
-                      </CardDescription>
-                    </div>
-                    <Badge className="bg-primary">
-                      R$ {purchase.total_amount.toFixed(2).replace('.', ',')}
-                    </Badge>
+                  <div>
+                    <CardTitle className="text-2xl">Seus Produtos</CardTitle>
+                    <CardDescription>
+                      Compra realizada em {new Date(purchase.created_at).toLocaleDateString('pt-BR')}
+                    </CardDescription>
                   </div>
                 </CardHeader>
                 <CardContent className="pt-6">
@@ -186,8 +180,7 @@ const Dashboard = () => {
                           </div>
                           <div>
                             <h4 className="font-bold text-lg">{product}</h4>
-                            <p className="text-sm text-muted-foreground flex items-center gap-2">
-                              <Shield className="w-4 h-4" />
+                            <p className="text-sm text-muted-foreground">
                               Acesso vitalício • Download ilimitado
                             </p>
                           </div>
@@ -217,20 +210,6 @@ const Dashboard = () => {
               </Card>
             ))}
 
-            {/* Garantia */}
-            <Card className="border-2 border-primary/30 bg-gradient-to-br from-primary/10 to-transparent">
-              <CardContent className="pt-6">
-                <div className="flex items-start gap-4">
-                  <Shield className="w-8 h-8 text-primary flex-shrink-0" />
-                  <div>
-                    <h3 className="font-bold text-lg mb-2">Garantia de 7 Dias</h3>
-                    <p className="text-sm text-muted-foreground">
-                      Se você não estiver satisfeito com suas planilhas, devolvemos 100% do seu dinheiro dentro de 7 dias após a compra.
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
           </div>
         )}
       </div>
