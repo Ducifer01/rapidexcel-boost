@@ -1,88 +1,22 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { CheckCircle, ArrowRight, Info, Loader2 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
+import { CheckCircle, ArrowRight, Info } from "lucide-react";
 
 const Success = () => {
   const navigate = useNavigate();
-  const { toast } = useToast();
-  const [verifying, setVerifying] = useState(true);
-  const [credentials, setCredentials] = useState<{ email: string; password: string } | null>(null);
 
   useEffect(() => {
-    const verifyPayment = async () => {
-      // Pegar session_id da URL
-      const urlParams = new URLSearchParams(window.location.search);
-      const sessionId = urlParams.get('session_id');
-
-      if (!sessionId) {
-        toast({
-          title: "Erro",
-          description: "ID da sessão não encontrado",
-          variant: "destructive",
-        });
-        setVerifying(false);
-        return;
-      }
-
-      try {
-        // Verificar pagamento no Stripe
-        const { data, error } = await supabase.functions.invoke('verify-stripe-payment', {
-          body: { session_id: sessionId },
-        });
-
-        if (error) throw error;
-
-        console.log('Verificação de pagamento:', data);
-
-        // Se o usuário foi criado, pegar credenciais do sessionStorage
-        if (data.user_created) {
-          const checkoutData = sessionStorage.getItem('checkout_data');
-          if (checkoutData) {
-            const parsed = JSON.parse(checkoutData);
-            setCredentials({
-              email: parsed.email,
-              password: parsed.password || data.temp_password,
-            });
-            sessionStorage.removeItem('checkout_data');
-          }
-        }
-
-        // Enviar evento para analytics
-        if (typeof window !== 'undefined' && (window as any).gtag) {
-          (window as any).gtag('event', 'purchase', {
-            transaction_id: sessionId,
-            value: 25.98,
-            currency: 'BRL',
-          });
-        }
-
-      } catch (error) {
-        console.error('Erro ao verificar pagamento:', error);
-        toast({
-          title: "Erro na verificação",
-          description: "Não foi possível verificar o pagamento. Tente fazer login.",
-          variant: "destructive",
-        });
-      } finally {
-        setVerifying(false);
-      }
-    };
-
-    verifyPayment();
-  }, [toast]);
-
-  if (verifying) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-green-50 to-emerald-100 dark:from-green-950 dark:to-emerald-950 p-4">
-        <Loader2 className="w-12 h-12 animate-spin text-green-600 mb-4" />
-        <p className="text-green-700 dark:text-green-300">Verificando seu pagamento...</p>
-      </div>
-    );
-  }
+    // Opcional: enviar evento de conversão para analytics
+    if (typeof window !== 'undefined' && (window as any).gtag) {
+      (window as any).gtag('event', 'purchase', {
+        transaction_id: new URLSearchParams(window.location.search).get('payment_id'),
+        value: 25.98,
+        currency: 'BRL',
+      });
+    }
+  }, []);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50 to-emerald-100 dark:from-green-950 dark:to-emerald-950 p-4">
@@ -110,17 +44,8 @@ const Success = () => {
                   Sua conta foi criada automaticamente!
                 </p>
                 <p className="text-sm text-green-700 dark:text-green-300">
-                  Use o <strong>email{credentials ? ` (${credentials.email})` : ""}</strong> e <strong>senha</strong> que você cadastrou no checkout para fazer login e acessar suas planilhas.
+                  Use o <strong>email e senha</strong> que você cadastrou no checkout para fazer login e acessar suas planilhas.
                 </p>
-                {credentials && (
-                  <div className="mt-3 p-3 bg-green-100 dark:bg-green-800/50 rounded border border-green-300 dark:border-green-700">
-                    <p className="text-xs text-green-800 dark:text-green-200 font-mono break-all">
-                      <strong>Email:</strong> {credentials.email}
-                      <br />
-                      <strong>Senha:</strong> {credentials.password}
-                    </p>
-                  </div>
-                )}
               </div>
             </div>
           </div>

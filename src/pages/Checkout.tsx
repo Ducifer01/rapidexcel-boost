@@ -10,6 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { z } from "zod";
 import { formatCPF, validateCPF } from "@/lib/cpf-utils";
+import { PaymentForm } from "@/components/PaymentForm";
 
 const checkoutSchema = z.object({
   name: z.string().trim().min(3, "Nome deve ter pelo menos 3 caracteres").max(100),
@@ -30,7 +31,31 @@ const Checkout = () => {
   const [hasUpsell, setHasUpsell] = useState(false);
   const [buyersCount, setBuyersCount] = useState(2847);
   const [showNotification, setShowNotification] = useState(false);
-  const [timeLeft, setTimeLeft] = useState(14 * 60 + 43); // 14:43 minutos
+  const [timeLeft, setTimeLeft] = useState(14 * 60 + 43);
+  const [cardToken, setCardToken] = useState<string | null>(null);
+  const [showPaymentForm, setShowPaymentForm] = useState(false);
+  const [publicKey, setPublicKey] = useState<string | null>(null);
+
+  // Buscar Public Key do Supabase
+  useEffect(() => {
+    const fetchPublicKey = async () => {
+      try {
+        const { data, error } = await supabase.functions.invoke('get-public-key');
+        if (error) throw error;
+        if (data?.public_key) {
+          setPublicKey(data.public_key);
+        }
+      } catch (error) {
+        console.error('Erro ao buscar public key:', error);
+        toast({
+          title: "Erro de configuração",
+          description: "Não foi possível carregar as configurações de pagamento.",
+          variant: "destructive",
+        });
+      }
+    };
+    fetchPublicKey();
+  }, []);
 
   const pack1Price = 12.99;
   const pack2Price = 12.99;
@@ -102,61 +127,59 @@ const Checkout = () => {
       return;
     }
 
-    handleFinalizePayment();
+    // Mostrar formulário de pagamento
+    setShowPaymentForm(true);
   };
 
   const handleFinalizePayment = async () => {
+    if (!cardToken) {
+      toast({
+        title: "Dados do cartão inválidos",
+        description: "Verifique os dados do cartão e tente novamente.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setLoading(true);
-    setErrors({});
 
     try {
       const productIds = hasUpsell ? ['pack_1', 'pack_2'] : ['pack_1'];
-      
-      console.log('Iniciando checkout Stripe com:', {
-        product_ids: productIds,
-        payer: {
-          name: formData.name,
-          email: formData.email,
-        },
-      });
 
-      const { data, error } = await supabase.functions.invoke('create-stripe-checkout', {
+      const { data, error } = await supabase.functions.invoke('process-payment', {
         body: {
           product_ids: productIds,
+          password: formData.password,
+          card_token: cardToken,
           payer: {
-            name: formData.name,
             email: formData.email,
+            name: formData.name,
+            identification: {
+              type: 'CPF',
+              number: formData.cpf.replace(/\D/g, ''),
+            },
           },
         },
       });
 
-      if (error) {
-        console.error('Erro na função:', error);
-        throw new Error(error.message || 'Erro ao processar pagamento');
-      }
+      if (error) throw error;
 
-      if (!data?.url) {
-        throw new Error('Link de pagamento não foi gerado');
+      if (data?.payment_id && data?.status === 'approved') {
+        navigate('/success');
+      } else if (data?.status === 'pending') {
+        navigate('/pending');
+      } else {
+        navigate('/failure');
       }
-
-      console.log('Redirecionando para Stripe Checkout:', data.url);
-      
-      // Salvar dados do formulário no sessionStorage para usar após pagamento
-      sessionStorage.setItem('checkout_data', JSON.stringify({
-        name: formData.name,
-        email: formData.email,
-        password: formData.password,
-      }));
-      
-      window.location.href = data.url;
-      
-    } catch (error: any) {
-      console.error('Erro ao finalizar pagamento:', error);
+    } catch (error) {
+      console.error('Erro no checkout:', error);
       toast({
         title: "Erro ao processar pagamento",
-        description: error.message || "Ocorreu um erro. Tente novamente.",
+        description: "Tente novamente em alguns instantes.",
         variant: "destructive",
       });
+      setShowPaymentForm(false);
+      setCardToken(null);
     } finally {
       setLoading(false);
     }
@@ -343,23 +366,16 @@ const Checkout = () => {
                   </div>
 
                   {/* Botão */}
-                  <Button
-                    type="submit"
-                    className="w-full bg-gradient-to-r from-primary via-primary-glow to-primary hover:opacity-90 text-lg md:text-xl py-6 md:py-8 font-bold shadow-lg"
-                    disabled={loading}
-                  >
-                    {loading ? (
-                      <span className="flex items-center gap-2">
-                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                        Processando...
-                      </span>
-                    ) : (
-                      <>
-                        <CreditCard className="w-5 h-5 md:w-6 md:h-6 mr-2" />
-                        FINALIZAR PAGAMENTO
-                      </>
-                    )}
-                  </Button>
+                  {!showPaymentForm ? (
+                    <Button
+                      type="submit"
+                      className="w-full bg-gradient-to-r from-primary via-primary-glow to-primary hover:opacity-90 text-lg md:text-xl py-6 md:py-8 font-bold shadow-lg"
+                      disabled={loading}
+                    >
+                      <Lock className="w-5 h-5 md:w-6 md:h-6 mr-2" />
+                      CONTINUAR PARA PAGAMENTO
+                    </Button>
+                  ) : null}
 
                   {/* Segurança */}
                   <div className="flex flex-wrap items-center justify-center gap-4 md:gap-6 text-xs md:text-sm text-muted-foreground pt-2">
@@ -375,6 +391,68 @@ const Checkout = () => {
                 </form>
               </CardContent>
             </Card>
+
+            {/* Formulário de Pagamento */}
+            {showPaymentForm && (
+              <Card className="border-2 border-primary/50 shadow-xl bg-card/90 backdrop-blur mb-6">
+                <CardHeader className="border-b border-border/50 bg-gradient-to-br from-primary/5 to-transparent p-4 md:p-6">
+                  <div className="flex items-center justify-between flex-wrap gap-3">
+                    <CardTitle className="flex items-center gap-2 text-lg md:text-2xl">
+                      <div className="p-2 bg-primary/10 rounded-lg">
+                        <CreditCard className="w-5 h-5 text-primary" />
+                      </div>
+                      Dados do Cartão
+                    </CardTitle>
+                    <Badge variant="outline" className="text-xs">
+                      Passo 2 de 2
+                    </Badge>
+                  </div>
+                </CardHeader>
+                
+                <CardContent className="p-4 md:p-6">
+                  {publicKey ? (
+                    <PaymentForm
+                      onCardTokenChange={setCardToken}
+                      disabled={loading}
+                      publicKey={publicKey}
+                    />
+                  ) : (
+                    <div className="flex items-center justify-center py-8">
+                      <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+                    </div>
+                  )}
+
+                  <Button
+                    onClick={handleFinalizePayment}
+                    className="w-full bg-gradient-to-r from-primary via-primary-glow to-primary hover:opacity-90 text-lg md:text-xl py-6 md:py-8 font-bold shadow-lg mt-6"
+                    disabled={loading || !cardToken}
+                  >
+                    {loading ? (
+                      <span className="flex items-center gap-2">
+                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                        Processando pagamento...
+                      </span>
+                    ) : (
+                      <>
+                        <CreditCard className="w-5 h-5 md:w-6 md:h-6 mr-2" />
+                        FINALIZAR PAGAMENTO
+                      </>
+                    )}
+                  </Button>
+
+                  <div className="flex flex-wrap items-center justify-center gap-4 md:gap-6 text-xs md:text-sm text-muted-foreground pt-4">
+                    <div className="flex items-center gap-2">
+                      <Shield className="w-4 h-4 md:w-5 md:h-5 text-primary flex-shrink-0" />
+                      <span>Pagamento Seguro</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Lock className="w-4 h-4 md:w-5 md:h-5 text-primary flex-shrink-0" />
+                      <span>SSL Criptografado</span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
 
             {/* Upsell Card */}
             <Card 

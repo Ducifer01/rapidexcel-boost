@@ -101,9 +101,6 @@ export type Database = {
           payment_id: string
           payment_status: string
           products: string[]
-          stripe_customer_id: string | null
-          stripe_payment_intent_id: string | null
-          stripe_session_id: string | null
           total_amount: number
           updated_at: string | null
           user_email: string
@@ -116,9 +113,6 @@ export type Database = {
           payment_id: string
           payment_status: string
           products: string[]
-          stripe_customer_id?: string | null
-          stripe_payment_intent_id?: string | null
-          stripe_session_id?: string | null
           total_amount: number
           updated_at?: string | null
           user_email: string
@@ -131,9 +125,6 @@ export type Database = {
           payment_id?: string
           payment_status?: string
           products?: string[]
-          stripe_customer_id?: string | null
-          stripe_payment_intent_id?: string | null
-          stripe_session_id?: string | null
           total_amount?: number
           updated_at?: string | null
           user_email?: string
