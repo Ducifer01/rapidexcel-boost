@@ -10,6 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { z } from "zod";
 import { formatCPF, validateCPF } from "@/lib/cpf-utils";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
 const checkoutSchema = z.object({
   name: z.string().trim().min(3, "Nome deve ter pelo menos 3 caracteres").max(100),
@@ -30,7 +31,9 @@ const Checkout = () => {
   const [hasUpsell, setHasUpsell] = useState(false);
   const [buyersCount, setBuyersCount] = useState(2847);
   const [showNotification, setShowNotification] = useState(false);
+  const [currentNotification, setCurrentNotification] = useState({ name: "Maria Silva", city: "São Paulo" });
   const [timeLeft, setTimeLeft] = useState(14 * 60 + 43);
+  const [showUpsellModal, setShowUpsellModal] = useState(false);
 
   const pack1Price = 12.99;
   const pack2Price = 12.99;
@@ -41,6 +44,14 @@ const Checkout = () => {
   const pack1OriginalPrice = 197.00;
   const pack2OriginalPrice = 25.00;
 
+  const notifications = [
+    { name: "Maria Silva", city: "São Paulo" },
+    { name: "João Santos", city: "Rio de Janeiro" },
+    { name: "Ana Costa", city: "Belo Horizonte" },
+    { name: "Pedro Oliveira", city: "Salvador" },
+    { name: "Carla Ferreira", city: "Brasília" },
+  ];
+
   // Efeitos para prova social
   useEffect(() => {
     const buyersInterval = setInterval(() => {
@@ -48,6 +59,8 @@ const Checkout = () => {
     }, Math.random() * 15000 + 10000);
 
     const notificationInterval = setInterval(() => {
+      const randomNotification = notifications[Math.floor(Math.random() * notifications.length)];
+      setCurrentNotification(randomNotification);
       setShowNotification(true);
       setTimeout(() => setShowNotification(false), 4000);
     }, Math.random() * 20000 + 15000);
@@ -90,6 +103,17 @@ const Checkout = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Se não tem upsell, mostrar modal de confirmação
+    if (!hasUpsell) {
+      setShowUpsellModal(true);
+      return;
+    }
+    
+    await processPayment();
+  };
+
+  const processPayment = async () => {
     setErrors({});
     setLoading(true);
 
@@ -129,6 +153,12 @@ const Checkout = () => {
 
       if (error) throw error;
       
+      // Salvar tokens de autenticação se disponíveis
+      if (data?.auth_tokens) {
+        localStorage.setItem('sb-access-token', data.auth_tokens.access_token);
+        localStorage.setItem('sb-refresh-token', data.auth_tokens.refresh_token);
+      }
+      
       if (data?.init_point) {
         window.location.href = data.init_point;
       } else {
@@ -145,16 +175,6 @@ const Checkout = () => {
     }
   };
 
-  const notifications = [
-    { name: "Maria Silva", city: "São Paulo" },
-    { name: "João Santos", city: "Rio de Janeiro" },
-    { name: "Ana Costa", city: "Belo Horizonte" },
-    { name: "Pedro Oliveira", city: "Salvador" },
-    { name: "Carla Ferreira", city: "Brasília" },
-  ];
-  
-  const randomNotification = notifications[Math.floor(Math.random() * notifications.length)];
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 py-6 px-4">
       {/* Notificação */}
@@ -164,8 +184,8 @@ const Checkout = () => {
             <CardContent className="p-4 flex items-center gap-3">
               <div className="text-2xl">🎉</div>
               <div className="text-sm">
-                <p className="font-bold text-foreground">{randomNotification.name}</p>
-                <p className="text-muted-foreground">de {randomNotification.city}</p>
+                <p className="font-bold text-foreground">{currentNotification.name}</p>
+                <p className="text-muted-foreground">de {currentNotification.city}</p>
                 <p className="text-primary font-semibold">acabou de comprar!</p>
               </div>
             </CardContent>
@@ -572,6 +592,56 @@ const Checkout = () => {
 
         </div>
       </div>
+
+      {/* Modal de Confirmação Upsell */}
+      <AlertDialog open={showUpsellModal} onOpenChange={setShowUpsellModal}>
+        <AlertDialogContent className="max-w-md">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-xl md:text-2xl flex items-center gap-2">
+              🎁 Não perca esta oferta exclusiva!
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-left space-y-3 text-sm md:text-base">
+              <p className="font-semibold text-foreground">
+                Por apenas <span className="text-primary text-lg font-bold">R$ 12,99</span> a mais, você ganha:
+              </p>
+              <ul className="space-y-2 pl-1">
+                <li className="flex items-start gap-2">
+                  <Check className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
+                  <span><strong>Planner Financeiro Premium</strong> - Controle total das suas finanças</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <Check className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
+                  <span><strong>50 Dashboards Profissionais</strong> - Análises poderosas</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <Check className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
+                  <span><strong>93% de desconto</strong> - De R$ 25,00 por R$ 12,99</span>
+                </li>
+              </ul>
+              <div className="bg-primary/10 border border-primary/30 rounded-lg p-3 mt-4">
+                <p className="text-primary font-bold text-center">
+                  ⚡ Esta oferta expira em breve!
+                </p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex-col sm:flex-row gap-2">
+            <AlertDialogCancel onClick={processPayment} className="w-full sm:w-auto">
+              Não, continuar sem o bônus
+            </AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={() => {
+                setHasUpsell(true);
+                setShowUpsellModal(false);
+                setTimeout(processPayment, 100);
+              }}
+              className="w-full sm:w-auto bg-gradient-to-r from-primary to-primary-glow hover:from-primary-glow hover:to-primary"
+            >
+              ✨ Sim, adicionar bônus ao pedido!
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

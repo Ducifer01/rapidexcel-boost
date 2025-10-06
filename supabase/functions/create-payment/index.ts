@@ -143,7 +143,29 @@ serve(async (req) => {
 
     logStep('Compra registrada com sucesso', { purchaseId: purchase.id });
 
-    // 3. CRIAR PREFERÊNCIA NO MERCADOPAGO usando o UUID da compra
+    // 3. GERAR TOKENS DE AUTENTICAÇÃO (criar sessão)
+    let authTokens = null;
+    if (!existingUser) {
+      // Para novo usuário, criar sessão
+      logStep('Gerando tokens de autenticação', { userId: authUserId });
+      
+      const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+        email: payer.email,
+        password: password,
+      });
+
+      if (!signInError && signInData.session) {
+        authTokens = {
+          access_token: signInData.session.access_token,
+          refresh_token: signInData.session.refresh_token,
+        };
+        logStep('Tokens gerados com sucesso');
+      } else {
+        logStep('ERRO ao gerar tokens', signInError);
+      }
+    }
+
+    // 4. CRIAR PREFERÊNCIA NO MERCADOPAGO usando o UUID da compra
     const preferenceData = {
       items,
       payer: {
@@ -192,6 +214,7 @@ serve(async (req) => {
         preference_id: preference.id,
         init_point: preference.init_point,
         external_reference: purchase.id, // Retornar UUID da compra
+        auth_tokens: authTokens,
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
