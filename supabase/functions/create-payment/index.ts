@@ -101,7 +101,8 @@ serve(async (req) => {
       statement_descriptor: 'PLANILHAEXPRESS',
       payment_methods: {
         excluded_payment_types: [],
-        installments: 1,
+        installments: 12,
+        default_installments: 1,
       },
     };
 

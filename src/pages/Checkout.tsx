@@ -347,38 +347,6 @@ const Checkout = () => {
               </CardContent>
             </Card>
 
-            {/* Informação de Métodos de Pagamento */}
-            <Card className="border-2 border-primary/30 shadow-xl bg-card/90 backdrop-blur mb-6">
-              <CardHeader className="p-4 md:p-6 border-b border-border/50">
-                <CardTitle className="flex items-center gap-2 text-lg md:text-xl">
-                  <Sparkles className="w-5 h-5 text-primary" />
-                  Formas de Pagamento
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="p-4 md:p-6 space-y-3">
-                <div className="flex items-center gap-3 p-3 bg-primary/5 rounded-lg">
-                  <div className="text-2xl">📱</div>
-                  <div>
-                    <p className="font-semibold text-foreground">PIX</p>
-                    <p className="text-xs text-muted-foreground">Aprovação imediata</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
-                  <div className="text-2xl">💳</div>
-                  <div>
-                    <p className="font-semibold text-foreground">Cartão de Crédito</p>
-                    <p className="text-xs text-muted-foreground">Parcelamento disponível</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
-                  <div className="text-2xl">📄</div>
-                  <div>
-                    <p className="font-semibold text-foreground">Boleto Bancário</p>
-                    <p className="text-xs text-muted-foreground">Compensação em até 2 dias</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
 
             {/* Card Upsell */}
             <Card className="border-2 border-primary/50 shadow-xl bg-gradient-to-br from-primary/10 via-background to-background mb-6 relative overflow-hidden">
