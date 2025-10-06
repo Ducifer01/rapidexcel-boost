@@ -3,13 +3,7 @@ project_id = "ezymoplfpsjpklskgodn"
 [functions.create-payment]
 verify_jwt = false
 
-[functions.get-public-key]
-verify_jwt = false
-
 [functions.payment-webhook]
-verify_jwt = false
-
-[functions.process-payment]
 verify_jwt = false
 
 [functions.verify-product-access]
