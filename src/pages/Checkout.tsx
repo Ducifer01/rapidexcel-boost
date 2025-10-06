@@ -30,7 +30,7 @@ const Checkout = () => {
   const [hasUpsell, setHasUpsell] = useState(false);
   const [buyersCount, setBuyersCount] = useState(2847);
   const [showNotification, setShowNotification] = useState(false);
-  const [timeLeft, setTimeLeft] = useState(15 * 60); // 15 minutos em segundos
+  const [timeLeft, setTimeLeft] = useState(14 * 60 + 43); // 14:43 minutos em segundos
 
   const pack1Price = 12.99;
   const pack2Price = 12.99;
@@ -369,10 +369,10 @@ const Checkout = () => {
                       ))}
                     </div>
 
-                    <div className="ml-9 flex items-center gap-3 flex-wrap">
-                      <span className="text-sm text-muted-foreground line-through">De R$ {pack2OriginalPrice.toFixed(2)}</span>
-                      <span className="text-3xl font-black text-secondary">R$ {pack2Price.toFixed(2).replace('.', ',')}</span>
-                      <Badge className="bg-red-600 hover:bg-red-700 text-white text-xs px-3 py-1.5 shadow-lg border-0">
+                    <div className="ml-9 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
+                      <span className="text-sm text-muted-foreground line-through whitespace-nowrap">De R$ {pack2OriginalPrice.toFixed(2)}</span>
+                      <span className="text-3xl font-black text-secondary whitespace-nowrap">R$ {pack2Price.toFixed(2).replace('.', ',')}</span>
+                      <Badge className="bg-red-600 hover:bg-red-700 text-white text-xs px-3 py-1.5 shadow-lg border-0 w-fit">
                         48% OFF
                       </Badge>
                     </div>
@@ -452,10 +452,10 @@ const Checkout = () => {
                         </div>
                       ))}
                     </div>
-                    <div className="flex items-center gap-3 pt-4 border-t border-border/50">
-                      <span className="text-sm text-muted-foreground line-through">De R$ {pack1OriginalPrice.toFixed(2)}</span>
-                      <span className="text-3xl font-black text-primary">R$ {pack1Price.toFixed(2).replace('.', ',')}</span>
-                      <Badge className="bg-red-600 hover:bg-red-700 text-white text-xs px-3 py-1.5 shadow-lg border-0">
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 pt-4 border-t border-border/50">
+                      <span className="text-sm text-muted-foreground line-through whitespace-nowrap">De R$ {pack1OriginalPrice.toFixed(2)}</span>
+                      <span className="text-3xl font-black text-primary whitespace-nowrap">R$ {pack1Price.toFixed(2).replace('.', ',')}</span>
+                      <Badge className="bg-red-600 hover:bg-red-700 text-white text-xs px-3 py-1.5 shadow-lg border-0 w-fit">
                         93% OFF
                       </Badge>
                     </div>
@@ -481,10 +481,10 @@ const Checkout = () => {
                           </div>
                         ))}
                       </div>
-                      <div className="flex items-center gap-3 pt-4 border-t border-border/50">
-                        <span className="text-sm text-muted-foreground line-through">De R$ {pack2OriginalPrice.toFixed(2)}</span>
-                        <span className="text-3xl font-black text-secondary">R$ {pack2Price.toFixed(2).replace('.', ',')}</span>
-                        <Badge className="bg-red-600 hover:bg-red-700 text-white text-xs px-3 py-1.5 shadow-lg border-0">
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 pt-4 border-t border-border/50">
+                        <span className="text-sm text-muted-foreground line-through whitespace-nowrap">De R$ {pack2OriginalPrice.toFixed(2)}</span>
+                        <span className="text-3xl font-black text-secondary whitespace-nowrap">R$ {pack2Price.toFixed(2).replace('.', ',')}</span>
+                        <Badge className="bg-red-600 hover:bg-red-700 text-white text-xs px-3 py-1.5 shadow-lg border-0 w-fit">
                           48% OFF
                         </Badge>
                       </div>
@@ -493,14 +493,14 @@ const Checkout = () => {
                 </div>
 
                 <div className="border-t-2 border-border pt-6 space-y-3">
-                  <div className="flex justify-between items-center text-xl">
+                  <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 text-xl">
                     <span className="font-bold">TOTAL</span>
-                    <div className="text-right">
-                      <div className="text-4xl font-black text-primary mb-1">
-                        R$ {totalPrice.toFixed(2)}
+                    <div className="text-left sm:text-right">
+                      <div className="text-4xl font-black text-primary mb-1 whitespace-nowrap">
+                        R$ {totalPrice.toFixed(2).replace('.', ',')}
                       </div>
                       {hasUpsell && (
-                        <Badge className="bg-gradient-to-r from-secondary to-secondary-glow text-white text-sm">
+                        <Badge className="bg-gradient-to-r from-secondary to-secondary-glow text-white text-sm w-fit">
                           Você economizou R$ 12,01
                         </Badge>
                       )}
