@@ -107,37 +107,54 @@ const Checkout = () => {
 
   const handleFinalizePayment = async () => {
     setLoading(true);
+    setErrors({});
 
     try {
       const productIds = hasUpsell ? ['pack_1', 'pack_2'] : ['pack_1'];
+      
+      console.log('Iniciando checkout Stripe com:', {
+        product_ids: productIds,
+        payer: {
+          name: formData.name,
+          email: formData.email,
+        },
+      });
 
-      const { data, error } = await supabase.functions.invoke('create-payment', {
+      const { data, error } = await supabase.functions.invoke('create-stripe-checkout', {
         body: {
           product_ids: productIds,
-          password: formData.password,
           payer: {
-            email: formData.email,
             name: formData.name,
-            identification: {
-              type: 'CPF',
-              number: formData.cpf,
-            },
+            email: formData.email,
           },
         },
       });
 
-      if (error) throw error;
-
-      if (data?.init_point) {
-        window.location.href = data.init_point;
-      } else {
-        throw new Error('Erro ao processar pagamento');
+      if (error) {
+        console.error('Erro na função:', error);
+        throw new Error(error.message || 'Erro ao processar pagamento');
       }
-    } catch (error) {
-      console.error('Erro no checkout:', error);
+
+      if (!data?.url) {
+        throw new Error('Link de pagamento não foi gerado');
+      }
+
+      console.log('Redirecionando para Stripe Checkout:', data.url);
+      
+      // Salvar dados do formulário no sessionStorage para usar após pagamento
+      sessionStorage.setItem('checkout_data', JSON.stringify({
+        name: formData.name,
+        email: formData.email,
+        password: formData.password,
+      }));
+      
+      window.location.href = data.url;
+      
+    } catch (error: any) {
+      console.error('Erro ao finalizar pagamento:', error);
       toast({
         title: "Erro ao processar pagamento",
-        description: "Tente novamente em alguns instantes.",
+        description: error.message || "Ocorreu um erro. Tente novamente.",
         variant: "destructive",
       });
     } finally {

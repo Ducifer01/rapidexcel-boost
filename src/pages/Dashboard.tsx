@@ -38,7 +38,7 @@ const Dashboard = () => {
         .from('purchases')
         .select('*')
         .eq('auth_user_id', session.user.id)
-        .eq('payment_status', 'approved')
+        .in('payment_status', ['approved', 'succeeded'])
         .order('created_at', { ascending: false });
 
       if (error) {

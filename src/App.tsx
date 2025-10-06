@@ -8,8 +8,7 @@ import Terms from "./pages/Terms";
 import Privacy from "./pages/Privacy";
 import Checkout from "./pages/Checkout";
 import Success from "./pages/Success";
-import Pending from "./pages/Pending";
-import Failure from "./pages/Failure";
+import Cancel from "./pages/Cancel";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import NotFound from "./pages/NotFound";
@@ -26,8 +25,7 @@ const App = () => (
           <Route path="/" element={<Index />} />
           <Route path="/checkout" element={<Checkout />} />
           <Route path="/success" element={<Success />} />
-          <Route path="/pending" element={<Pending />} />
-          <Route path="/failure" element={<Failure />} />
+          <Route path="/cancel" element={<Cancel />} />
           <Route path="/login" element={<Login />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/termos" element={<Terms />} />

@@ -1,9 +1,9 @@
 project_id = "ezymoplfpsjpklskgodn"
 
-[functions.create-payment]
+[functions.create-stripe-checkout]
 verify_jwt = false
 
-[functions.payment-webhook]
+[functions.verify-stripe-payment]
 verify_jwt = false
 
 [functions.verify-product-access]
