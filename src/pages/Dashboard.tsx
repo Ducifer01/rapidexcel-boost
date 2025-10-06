@@ -33,12 +33,11 @@ const Dashboard = () => {
 
       setUserEmail(session.user.email || "");
 
-      // Buscar compras aprovadas do usuário
+      // Buscar TODAS as compras do usuário (não só approved)
       const { data, error } = await supabase
         .from('purchases')
         .select('*')
         .eq('auth_user_id', session.user.id)
-        .eq('payment_status', 'approved')
         .order('created_at', { ascending: false });
 
       if (error) {
@@ -130,86 +129,150 @@ const Dashboard = () => {
               <AlertCircle className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
               <h3 className="text-xl font-semibold mb-2">Nenhuma compra encontrada</h3>
               <p className="text-muted-foreground mb-6">
-                Aguardando confirmação do pagamento ou você ainda não realizou nenhuma compra.
+                Você ainda não realizou nenhuma compra.
               </p>
               <Button onClick={() => navigate('/')}>
-                Voltar para a página inicial
+                Fazer uma compra
               </Button>
             </CardContent>
           </Card>
         ) : (
           <div className="space-y-6">
-            {/* Status Info */}
-            <Card className="border-2 border-primary/30 bg-primary/5">
-              <CardContent className="pt-6">
-                <div className="flex items-center gap-3">
-                  <div className="p-3 bg-primary/20 rounded-full">
-                    <CheckCircle2 className="w-6 h-6 text-primary" />
-                  </div>
-                  <div>
-                    <h3 className="font-bold text-lg">Pagamento Confirmado!</h3>
-                    <p className="text-sm text-muted-foreground">
-                      Você tem acesso a {purchases.reduce((acc, p) => acc + p.products.length, 0)} produto(s)
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+            {/* Iterar sobre cada compra */}
+            {purchases.map((purchase) => {
+              const isApproved = purchase.payment_status === 'approved';
+              const isPending = purchase.payment_status === 'pending';
+              const isRejected = purchase.payment_status === 'rejected' || purchase.payment_status === 'cancelled';
 
-            {/* Produtos */}
-            {purchases.map((purchase) => (
-              <Card key={purchase.id} className="border-2 border-border/50 shadow-xl">
-                <CardHeader className="border-b border-border/50">
-                  <div>
-                    <CardTitle className="text-2xl">Seus Produtos</CardTitle>
-                    <CardDescription>
-                      Compra realizada em {new Date(purchase.created_at).toLocaleDateString('pt-BR')}
-                    </CardDescription>
-                  </div>
-                </CardHeader>
-                <CardContent className="pt-6">
-                  <div className="grid gap-4">
-                    {purchase.products.map((product, index) => (
-                      <div
-                        key={index}
-                        className="flex items-center justify-between p-4 bg-gradient-to-r from-primary/5 to-transparent rounded-lg border border-primary/20"
-                      >
-                        <div className="flex items-center gap-4">
-                          <div className="p-3 bg-primary/10 rounded-lg">
-                            <Package className="w-6 h-6 text-primary" />
+              return (
+                <Card key={purchase.id} className="border-2 border-border/50 shadow-xl">
+                  <CardHeader className="border-b border-border/50">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <CardTitle className="text-2xl flex items-center gap-3">
+                          {isApproved && (
+                            <div className="flex items-center gap-2 text-green-500">
+                              <CheckCircle2 className="w-6 h-6" />
+                              <span>Pagamento Confirmado</span>
+                            </div>
+                          )}
+                          {isPending && (
+                            <div className="flex items-center gap-2 text-yellow-500">
+                              <Loader2 className="w-6 h-6 animate-spin" />
+                              <span>Aguardando Pagamento</span>
+                            </div>
+                          )}
+                          {isRejected && (
+                            <div className="flex items-center gap-2 text-red-500">
+                              <AlertCircle className="w-6 h-6" />
+                              <span>Pagamento Recusado</span>
+                            </div>
+                          )}
+                        </CardTitle>
+                        <CardDescription className="mt-2">
+                          Compra realizada em {new Date(purchase.created_at).toLocaleDateString('pt-BR')} às {new Date(purchase.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                        </CardDescription>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm text-muted-foreground">Total pago</p>
+                        <p className="text-2xl font-bold text-primary">
+                          R$ {purchase.total_amount.toFixed(2)}
+                        </p>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="pt-6">
+                    {/* Se pagamento aprovado, mostrar produtos */}
+                    {isApproved && (
+                      <div className="grid gap-4">
+                        {purchase.products.map((product, index) => (
+                          <div
+                            key={index}
+                            className="flex items-center justify-between p-4 bg-gradient-to-r from-primary/5 to-transparent rounded-lg border border-primary/20"
+                          >
+                            <div className="flex items-center gap-4">
+                              <div className="p-3 bg-primary/10 rounded-lg">
+                                <Package className="w-6 h-6 text-primary" />
+                              </div>
+                              <div>
+                                <h4 className="font-bold text-lg">{product}</h4>
+                                <p className="text-sm text-muted-foreground">
+                                  Acesso vitalício • Download ilimitado
+                                </p>
+                              </div>
+                            </div>
+                            <Button
+                              onClick={() => handleDownload(product)}
+                              disabled={downloading === product}
+                              size="lg"
+                              className="bg-gradient-to-r from-primary to-primary-glow"
+                            >
+                              {downloading === product ? (
+                                <>
+                                  <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                                  Baixando...
+                                </>
+                              ) : (
+                                <>
+                                  <Download className="w-5 h-5 mr-2" />
+                                  Baixar Arquivo
+                                </>
+                              )}
+                            </Button>
                           </div>
-                          <div>
-                            <h4 className="font-bold text-lg">{product}</h4>
-                            <p className="text-sm text-muted-foreground">
-                              Acesso vitalício • Download ilimitado
-                            </p>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Se pagamento pendente */}
+                    {isPending && (
+                      <div className="text-center py-8 space-y-4">
+                        <div className="p-4 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
+                          <h4 className="font-bold text-lg mb-2">⏳ Aguardando Confirmação do Pagamento</h4>
+                          <p className="text-muted-foreground mb-4">
+                            Seu pagamento está sendo processado. Isso pode levar alguns minutos.
+                          </p>
+                          <div className="space-y-2 text-sm text-muted-foreground">
+                            <p>• <strong>PIX:</strong> Confirmação em até 5 minutos</p>
+                            <p>• <strong>Cartão de Crédito:</strong> Confirmação imediata</p>
+                            <p>• <strong>Boleto:</strong> Confirmação em até 2 dias úteis</p>
                           </div>
                         </div>
-                        <Button
-                          onClick={() => handleDownload(product)}
-                          disabled={downloading === product}
-                          size="lg"
-                          className="bg-gradient-to-r from-primary to-primary-glow"
-                        >
-                          {downloading === product ? (
-                            <>
-                              <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                              Baixando...
-                            </>
-                          ) : (
-                            <>
-                              <Download className="w-5 h-5 mr-2" />
-                              Baixar Arquivo
-                            </>
-                          )}
-                        </Button>
+                        <p className="text-sm text-muted-foreground">
+                          Produtos adquiridos: <strong>{purchase.products.join(', ')}</strong>
+                        </p>
                       </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+                    )}
 
+                    {/* Se pagamento recusado */}
+                    {isRejected && (
+                      <div className="text-center py-8 space-y-4">
+                        <div className="p-4 bg-red-500/10 border border-red-500/30 rounded-lg">
+                          <h4 className="font-bold text-lg mb-2">❌ Pagamento Não Aprovado</h4>
+                          <p className="text-muted-foreground mb-4">
+                            Infelizmente seu pagamento foi recusado. Tente novamente ou entre em contato com nosso suporte.
+                          </p>
+                          <div className="flex gap-3 justify-center">
+                            <Button onClick={() => navigate('/')} variant="outline">
+                              Tentar Novamente
+                            </Button>
+                            <Button 
+                              onClick={() => window.open('https://wa.me/5511999999999?text=Preciso%20de%20ajuda%20com%20meu%20pagamento', '_blank')}
+                              className="bg-green-600 hover:bg-green-700"
+                            >
+                              Falar com Suporte
+                            </Button>
+                          </div>
+                        </div>
+                        <p className="text-sm text-muted-foreground">
+                          Produtos: <strong>{purchase.products.join(', ')}</strong>
+                        </p>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              );
+            })}
           </div>
         )}
       </div>

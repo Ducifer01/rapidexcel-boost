@@ -67,71 +67,49 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    // Buscar a compra pelo external_reference
-    const externalRef = payment.external_reference || payment.id.toString();
-    logStep('Buscando compra', { externalRef });
+    // Buscar a compra pelo external_reference (que é o UUID da compra)
+    const purchaseId = payment.external_reference;
+    
+    if (!purchaseId) {
+      logStep('ERRO: external_reference não encontrado no pagamento');
+      throw new Error('external_reference ausente no pagamento');
+    }
+
+    logStep('Buscando compra pelo ID', { purchaseId });
 
     const { data: purchase, error: fetchError } = await supabase
       .from('purchases')
       .select('*')
-      .eq('payment_id', externalRef)
+      .eq('id', purchaseId)
       .single();
 
     if (fetchError || !purchase) {
       logStep('ERRO ao buscar compra', fetchError);
-      throw new Error(`Compra não encontrada: ${externalRef}`);
+      throw new Error(`Compra não encontrada: ${purchaseId}`);
     }
 
     logStep('Compra encontrada', { 
       id: purchase.id, 
       email: purchase.user_email,
+      userId: purchase.auth_user_id,
       current_status: purchase.payment_status 
     });
 
-    // Se o pagamento foi aprovado, criar usuário no Supabase Auth
-    let authUserId = purchase.auth_user_id;
-    
-    if (payment.status === 'approved' && !purchase.auth_user_id) {
-      logStep('Pagamento aprovado! Criando usuário', { email: purchase.user_email });
-      
-      // Criar usuário no Supabase Auth usando Service Role
-      const { data: authData, error: authError } = await supabase.auth.admin.createUser({
-        email: purchase.user_email,
-        password: purchase.password_hash, // Usar hash como senha temporária
-        email_confirm: true, // Confirmar email automaticamente
-        user_metadata: {
-          name: payment.payer?.name || payment.payer?.first_name || purchase.user_email.split('@')[0],
-          cpf: payment.payer?.identification?.number,
-          purchase_id: purchase.id,
-        }
-      });
-
-      if (authError) {
-        logStep('ERRO ao criar usuário', authError);
-        // Continuar mesmo com erro - admin pode criar manualmente
-      } else if (authData.user) {
-        authUserId = authData.user.id;
-        logStep('Usuário criado com sucesso', { userId: authUserId });
-      }
-    }
-
-    // Atualizar status da compra e associar ao usuário
-    logStep('Atualizando compra', { 
-      status: payment.status, 
-      authUserId,
-      clearPassword: payment.status === 'approved' 
+    // Atualizar apenas o status do pagamento
+    logStep('Atualizando status do pagamento', { 
+      old_status: purchase.payment_status,
+      new_status: payment.status,
+      payment_id: payment.id
     });
 
     const { error: updateError } = await supabase
       .from('purchases')
       .update({
         payment_status: payment.status,
-        payment_id: payment.id.toString(),
-        auth_user_id: authUserId,
-        password_hash: payment.status === 'approved' ? null : purchase.password_hash, // Limpar senha após criar usuário
+        payment_id: payment.id.toString(), // ID real do pagamento do MercadoPago
         updated_at: new Date().toISOString(),
       })
-      .eq('payment_id', externalRef);
+      .eq('id', purchaseId);
 
     if (updateError) {
       logStep('ERRO ao atualizar compra', updateError);

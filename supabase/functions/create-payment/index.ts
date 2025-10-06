@@ -79,10 +79,71 @@ serve(async (req) => {
       throw new Error('MercadoPago Access Token não configurado');
     }
 
-    const externalRef = crypto.randomUUID();
-    logStep('Reference ID gerado', { externalRef });
+    // Criar cliente Supabase
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
 
-    // Criar preferência de pagamento no MercadoPago
+    // 1. CRIAR USUÁRIO IMEDIATAMENTE (se não existir)
+    logStep('Verificando se usuário existe', { email: payer.email });
+    
+    let authUserId: string | null = null;
+    
+    // Buscar usuário existente por email
+    const { data: existingUsers } = await supabase.auth.admin.listUsers();
+    const existingUser = existingUsers?.users?.find(u => u.email === payer.email);
+    
+    if (existingUser) {
+      authUserId = existingUser.id;
+      logStep('Usuário já existe', { userId: authUserId });
+    } else {
+      // Criar novo usuário
+      logStep('Criando novo usuário', { email: payer.email });
+      
+      const { data: newUser, error: authError } = await supabase.auth.admin.createUser({
+        email: payer.email,
+        password: password,
+        email_confirm: true,
+        user_metadata: {
+          name: payer.name,
+        }
+      });
+
+      if (authError || !newUser.user) {
+        logStep('ERRO ao criar usuário', authError);
+        throw new Error(`Erro ao criar usuário: ${authError?.message}`);
+      }
+
+      authUserId = newUser.user.id;
+      logStep('Usuário criado com sucesso', { userId: authUserId });
+    }
+
+    // 2. REGISTRAR COMPRA com auth_user_id
+    const totalAmount = items.reduce((sum: number, item: any) => sum + (item.unit_price * item.quantity), 0);
+    logStep('Registrando compra no Supabase', { email: payer.email, userId: authUserId, total: totalAmount });
+
+    const { data: purchase, error: insertError } = await supabase
+      .from('purchases')
+      .insert({
+        user_email: payer.email,
+        products: items.map((item: any) => item.title),
+        total_amount: totalAmount,
+        payment_status: 'pending',
+        payment_id: 'temp', // Temporário (será atualizado pelo webhook)
+        auth_user_id: authUserId, // Usuário já criado
+      })
+      .select()
+      .single();
+
+    if (insertError || !purchase) {
+      logStep('ERRO ao inserir compra', insertError);
+      throw new Error(`Erro ao registrar compra: ${insertError?.message}`);
+    }
+
+    logStep('Compra registrada com sucesso', { purchaseId: purchase.id });
+
+    // 3. CRIAR PREFERÊNCIA NO MERCADOPAGO usando o UUID da compra
     const preferenceData = {
       items,
       payer: {
@@ -96,7 +157,7 @@ serve(async (req) => {
         pending: `${req.headers.get('origin')}/pending`,
       },
       notification_url: `${Deno.env.get('SUPABASE_URL')}/functions/v1/payment-webhook`,
-      external_reference: externalRef,
+      external_reference: purchase.id, // UUID da compra
       auto_return: 'approved',
       statement_descriptor: 'PLANILHAEXPRESS',
       payment_methods: {
@@ -106,7 +167,7 @@ serve(async (req) => {
       },
     };
 
-    logStep('Enviando para MercadoPago', { url: 'https://api.mercadopago.com/checkout/preferences' });
+    logStep('Enviando para MercadoPago', { url: 'https://api.mercadopago.com/checkout/preferences', purchaseId: purchase.id });
 
     const mercadoPagoResponse = await fetch('https://api.mercadopago.com/checkout/preferences', {
       method: 'POST',
@@ -126,44 +187,11 @@ serve(async (req) => {
     const preference = await mercadoPagoResponse.json();
     logStep('Preferência criada', { preference_id: preference.id });
 
-    // Registrar compra no Supabase
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    );
-
-    // Hash da senha usando Web Crypto API do Deno
-    const encoder = new TextEncoder();
-    const data = encoder.encode(password);
-    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-    const hashArray = Array.from(new Uint8Array(hashBuffer));
-    const passwordHash = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-
-    const totalAmount = items.reduce((sum: number, item: any) => sum + (item.unit_price * item.quantity), 0);
-
-    logStep('Registrando no Supabase', { email: payer.email, total: totalAmount });
-
-    const { error: insertError } = await supabase.from('purchases').insert({
-      user_email: payer.email,
-      products: items.map((item: any) => item.title),
-      total_amount: totalAmount,
-      payment_status: 'pending',
-      payment_id: externalRef,
-      password_hash: passwordHash,
-    });
-
-    if (insertError) {
-      logStep('ERRO ao inserir no Supabase', insertError);
-      throw new Error(`Erro ao registrar compra: ${insertError.message}`);
-    }
-
-    logStep('Compra registrada com sucesso');
-
     return new Response(
       JSON.stringify({
         preference_id: preference.id,
         init_point: preference.init_point,
-        external_reference: externalRef,
+        external_reference: purchase.id, // Retornar UUID da compra
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
