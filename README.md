@@ -316,7 +316,60 @@ No Supabase, vá em **Edge Functions > Manage Secrets** e adicione:
 - **Nome**: `MERCADOPAGO_ACCESS_TOKEN`
 - **Valor**: Seu Access Token do MercadoPago
 
-#### 5. Configurar Produtos
+#### 5. Como Testar com Sandbox (Ambiente de Testes)
+
+##### Alternando entre Sandbox e Produção
+
+**Para usar o Modo de Testes (Sandbox):**
+
+1. **Obter credenciais de teste:**
+   - Acesse: https://www.mercadopago.com.br/developers/panel/app
+   - No canto superior direito, mude de **"Modo Produção"** para **"Modo Teste"**
+   - Copie o **Access Token de Teste** (começa com `TEST-...`)
+
+2. **Atualizar token no Supabase:**
+   - Vá em **Edge Functions > Manage Secrets**
+   - Atualize o secret `MERCADOPAGO_ACCESS_TOKEN` com o token de **TESTE**
+
+3. **Usar cartões de teste:**
+   ```
+   ✅ Cartão APROVADO:
+   - Número: 5031 4332 1540 6351
+   - CVV: 123
+   - Validade: 11/25
+   - Titular: APRO
+   
+   ❌ Cartão RECUSADO:
+   - Número: 5031 7557 3453 0604
+   - CVV: 123
+   - Validade: 11/25
+   - Titular: OTHE
+   
+   ⏳ Pagamento PENDENTE:
+   - Número: 5031 4332 1540 6351
+   - CVV: 123
+   - Validade: 11/25
+   - Titular: CONT
+   ```
+
+4. **Para voltar à Produção:**
+   - Troque novamente o token no Supabase pelo token de **PRODUÇÃO**
+
+**⚡ É só isso!** Não precisa alterar código, apenas trocar o token no Supabase.
+
+##### Diferenças entre Sandbox e Produção
+
+| Aspecto | Sandbox (Teste) | Produção |
+|---------|-----------------|----------|
+| Token | Começa com `TEST-` | Começa com `APP_USR-` |
+| Pagamentos | Simulados, sem dinheiro real | Dinheiro real |
+| Cartões | Usar cartões de teste | Cartões reais dos clientes |
+| Webhook | Funciona normalmente | Funciona normalmente |
+| Conta criada | Sim, funciona igual | Sim, funciona igual |
+
+**💡 Dica:** Sempre teste em Sandbox antes de publicar mudanças!
+
+#### 6. Configurar Produtos
 
 Edite `src/pages/Checkout.tsx` para ajustar preços e nomes dos produtos:
 
