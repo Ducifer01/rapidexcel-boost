@@ -34,9 +34,28 @@ const Checkout = () => {
   const [timeLeft, setTimeLeft] = useState(14 * 60 + 43);
   const [cardToken, setCardToken] = useState<string | null>(null);
   const [showPaymentForm, setShowPaymentForm] = useState(false);
+  const [publicKey, setPublicKey] = useState<string | null>(null);
 
-  // Você precisa adicionar sua PUBLIC KEY do Mercado Pago aqui
-  const MERCADOPAGO_PUBLIC_KEY = "TEST-09d88e4b-e52d-45d0-b959-2d88fdfe0e2b"; // SUBSTITUA pela sua chave pública
+  // Buscar Public Key do Supabase
+  useEffect(() => {
+    const fetchPublicKey = async () => {
+      try {
+        const { data, error } = await supabase.functions.invoke('get-public-key');
+        if (error) throw error;
+        if (data?.public_key) {
+          setPublicKey(data.public_key);
+        }
+      } catch (error) {
+        console.error('Erro ao buscar public key:', error);
+        toast({
+          title: "Erro de configuração",
+          description: "Não foi possível carregar as configurações de pagamento.",
+          variant: "destructive",
+        });
+      }
+    };
+    fetchPublicKey();
+  }, []);
 
   const pack1Price = 12.99;
   const pack2Price = 12.99;
@@ -391,11 +410,17 @@ const Checkout = () => {
                 </CardHeader>
                 
                 <CardContent className="p-4 md:p-6">
-                  <PaymentForm
-                    onCardTokenChange={setCardToken}
-                    disabled={loading}
-                    publicKey={MERCADOPAGO_PUBLIC_KEY}
-                  />
+                  {publicKey ? (
+                    <PaymentForm
+                      onCardTokenChange={setCardToken}
+                      disabled={loading}
+                      publicKey={publicKey}
+                    />
+                  ) : (
+                    <div className="flex items-center justify-center py-8">
+                      <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+                    </div>
+                  )}
 
                   <Button
                     onClick={handleFinalizePayment}
