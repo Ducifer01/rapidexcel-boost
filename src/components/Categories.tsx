@@ -59,7 +59,7 @@ const Categories = () => {
         <div className="text-center mb-12 md:mb-16 space-y-4">
           <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold">
             Planilhas Para Todas as{" "}
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-accent to-secondary">
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-primary-glow">
               Suas Necessidades
             </span>
           </h2>
