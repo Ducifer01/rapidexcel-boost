@@ -6,15 +6,24 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+const logStep = (step: string, details?: any) => {
+  console.log(`[PROCESS-PAYMENT] ${step}`, details ? JSON.stringify(details) : '');
+};
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
+    logStep('Iniciando processamento de pagamento direto');
+    
     const { product_ids, payer, card_token, password } = await req.json();
-
-    console.log('Iniciando processamento de pagamento transparente');
+    logStep('Dados recebidos', { 
+      product_ids, 
+      payer_email: payer?.email,
+      has_token: !!card_token 
+    });
 
     // VALIDAÇÃO DE SEGURANÇA: Preços definidos NO SERVIDOR
     const VALID_PRODUCTS = {
@@ -34,6 +43,14 @@ serve(async (req) => {
       throw new Error('Token do cartão não fornecido');
     }
 
+    if (!payer?.email || !payer?.name) {
+      throw new Error('Dados do comprador incompletos');
+    }
+
+    if (!payer?.identification?.number) {
+      throw new Error('CPF não fornecido');
+    }
+
     // Calcular valor total
     const totalAmount = product_ids.reduce((sum: number, id: string) => {
       const product = VALID_PRODUCTS[id as keyof typeof VALID_PRODUCTS];
@@ -41,31 +58,38 @@ serve(async (req) => {
       return sum + product.price;
     }, 0);
 
+    logStep('Valor total calculado', { totalAmount });
+
     const mercadoPagoAccessToken = Deno.env.get('MERCADOPAGO_ACCESS_TOKEN');
     
     if (!mercadoPagoAccessToken) {
       throw new Error('MercadoPago Access Token não configurado');
     }
 
+    const description = product_ids.map((id: string) => 
+      VALID_PRODUCTS[id as keyof typeof VALID_PRODUCTS].title
+    ).join(' + ');
+
     // Processar pagamento com Mercado Pago
     const paymentData = {
       transaction_amount: totalAmount,
       token: card_token,
-      description: product_ids.map((id: string) => 
-        VALID_PRODUCTS[id as keyof typeof VALID_PRODUCTS].title
-      ).join(' + '),
+      description: description,
       installments: 1,
       payment_method_id: 'visa', // Será detectado automaticamente pelo token
       payer: {
         email: payer.email,
+        first_name: payer.name.split(' ')[0],
+        last_name: payer.name.split(' ').slice(1).join(' ') || payer.name.split(' ')[0],
         identification: {
-          type: payer.identification.type,
-          number: payer.identification.number,
+          type: payer.identification.type || 'CPF',
+          number: payer.identification.number.replace(/\D/g, ''),
         },
       },
+      statement_descriptor: 'PLANILHAEXPRESS',
     };
 
-    console.log('Enviando pagamento para Mercado Pago');
+    logStep('Enviando pagamento para Mercado Pago');
 
     const mercadoPagoResponse = await fetch('https://api.mercadopago.com/v1/payments', {
       method: 'POST',
@@ -78,13 +102,17 @@ serve(async (req) => {
     });
 
     if (!mercadoPagoResponse.ok) {
-      const error = await mercadoPagoResponse.text();
-      console.error('Erro do MercadoPago:', error);
-      throw new Error('Erro ao processar pagamento no MercadoPago');
+      const errorText = await mercadoPagoResponse.text();
+      logStep('ERRO do MercadoPago', { status: mercadoPagoResponse.status, error: errorText });
+      throw new Error(`Erro ao processar pagamento: ${errorText}`);
     }
 
     const payment = await mercadoPagoResponse.json();
-    console.log('Pagamento processado:', payment.id, payment.status);
+    logStep('Pagamento processado', { 
+      id: payment.id, 
+      status: payment.status,
+      status_detail: payment.status_detail 
+    });
 
     // Registrar no Supabase
     const supabase = createClient(
@@ -106,7 +134,7 @@ serve(async (req) => {
     // Se aprovado, criar usuário imediatamente
     let authUserId = null;
     if (payment.status === 'approved') {
-      console.log('Pagamento aprovado, criando usuário');
+      logStep('Pagamento aprovado, criando usuário');
       
       const { data: authData, error: authError } = await supabase.auth.admin.createUser({
         email: payer.email,
@@ -114,32 +142,37 @@ serve(async (req) => {
         email_confirm: true,
         user_metadata: {
           name: payer.name,
+          cpf: payer.identification.number,
           email_verified: true,
         },
       });
 
       if (authError) {
-        console.error('Erro ao criar usuário:', authError);
-      } else {
+        logStep('ERRO ao criar usuário', authError);
+      } else if (authData.user) {
         authUserId = authData.user.id;
-        console.log('Usuário criado:', authUserId);
+        logStep('Usuário criado', { userId: authUserId });
       }
     }
 
     // Inserir compra
+    logStep('Registrando compra no Supabase');
+    
     const { error: purchaseError } = await supabase.from('purchases').insert({
       user_email: payer.email,
       products: products,
       total_amount: totalAmount,
       payment_status: payment.status,
       payment_id: payment.id.toString(),
-      password_hash: passwordHash,
+      password_hash: payment.status === 'approved' ? null : passwordHash,
       auth_user_id: authUserId,
     });
 
     if (purchaseError) {
-      console.error('Erro ao registrar compra:', purchaseError);
+      logStep('ERRO ao registrar compra', purchaseError);
     }
+
+    logStep('Processamento concluído com sucesso');
 
     return new Response(
       JSON.stringify({
@@ -153,7 +186,7 @@ serve(async (req) => {
       }
     );
   } catch (error) {
-    console.error('Erro no process-payment:', error);
+    logStep('ERRO GERAL no process-payment', error);
     const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
     return new Response(
       JSON.stringify({ error: errorMessage }),
