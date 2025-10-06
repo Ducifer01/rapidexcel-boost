@@ -5,12 +5,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Shield, Clock, Check, CreditCard, Lock, Users, TrendingUp, Sparkles, Star, AlertCircle } from "lucide-react";
+import { Shield, Clock, Check, Lock, Users, TrendingUp, Sparkles, Star, AlertCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { z } from "zod";
 import { formatCPF, validateCPF } from "@/lib/cpf-utils";
-import { PaymentForm } from "@/components/PaymentForm";
 
 const checkoutSchema = z.object({
   name: z.string().trim().min(3, "Nome deve ter pelo menos 3 caracteres").max(100),
@@ -32,31 +31,6 @@ const Checkout = () => {
   const [buyersCount, setBuyersCount] = useState(2847);
   const [showNotification, setShowNotification] = useState(false);
   const [timeLeft, setTimeLeft] = useState(14 * 60 + 43);
-  const [cardToken, setCardToken] = useState<string | null>(null);
-  const [showPaymentForm, setShowPaymentForm] = useState(false);
-  const [publicKey, setPublicKey] = useState<string | null>(null);
-  const [paymentMethod, setPaymentMethod] = useState<'credit' | 'debit' | 'pix' | null>(null);
-
-  // Buscar Public Key do Supabase
-  useEffect(() => {
-    const fetchPublicKey = async () => {
-      try {
-        const { data, error } = await supabase.functions.invoke('get-public-key');
-        if (error) throw error;
-        if (data?.public_key) {
-          setPublicKey(data.public_key);
-        }
-      } catch (error) {
-        console.error('Erro ao buscar public key:', error);
-        toast({
-          title: "Erro de configuração",
-          description: "Não foi possível carregar as configurações de pagamento.",
-          variant: "destructive",
-        });
-      }
-    };
-    fetchPublicKey();
-  }, []);
 
   const pack1Price = 12.99;
   const pack2Price = 12.99;
@@ -114,9 +88,10 @@ const Checkout = () => {
     }
   };
 
-  const handleContinue = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrors({});
+    setLoading(true);
 
     const result = checkoutSchema.safeParse(formData);
     if (!result.success) {
@@ -125,97 +100,39 @@ const Checkout = () => {
         if (err.path[0]) newErrors[err.path[0] as string] = err.message;
       });
       setErrors(newErrors);
+      setLoading(false);
       return;
     }
-
-    if (!paymentMethod) {
-      toast({
-        title: "Selecione o método de pagamento",
-        description: "Escolha PIX, Cartão de Crédito ou Débito",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    // Mostrar formulário de pagamento
-    setShowPaymentForm(true);
-  };
-
-  const handleFinalizePayment = async () => {
-    setLoading(true);
 
     try {
       const productIds = hasUpsell ? ['pack_1', 'pack_2'] : ['pack_1'];
 
-      // PIX - redireciona para checkout MercadoPago
-      if (paymentMethod === 'pix') {
-        const { data, error } = await supabase.functions.invoke('create-payment', {
-          body: {
-            product_ids: productIds,
-            payer: {
-              email: formData.email,
-              name: formData.name,
-              identification: {
-                type: 'CPF',
-                number: formData.cpf.replace(/\D/g, ''),
-              },
-            },
-            password: formData.password,
-            back_urls: {
-              success: `${window.location.origin}/success`,
-              failure: `${window.location.origin}/failure`,
-              pending: `${window.location.origin}/pending`,
+      const { data, error } = await supabase.functions.invoke('create-payment', {
+        body: {
+          product_ids: productIds,
+          payer: {
+            email: formData.email,
+            name: formData.name,
+            identification: {
+              type: 'CPF',
+              number: formData.cpf.replace(/\D/g, ''),
             },
           },
-        });
-
-        if (error) throw error;
-        
-        if (data?.init_point) {
-          window.location.href = data.init_point;
-        } else {
-          throw new Error('URL de pagamento não recebida');
-        }
-        return;
-      }
-
-      // Cartão de crédito ou débito - pagamento direto
-      if (paymentMethod === 'credit' || paymentMethod === 'debit') {
-        if (!cardToken) {
-          toast({
-            title: "Dados do cartão inválidos",
-            description: "Verifique os dados do cartão e tente novamente.",
-            variant: "destructive",
-          });
-          setLoading(false);
-          return;
-        }
-
-        const { data, error } = await supabase.functions.invoke('process-payment', {
-          body: {
-            product_ids: productIds,
-            password: formData.password,
-            card_token: cardToken,
-            payer: {
-              email: formData.email,
-              name: formData.name,
-              identification: {
-                type: 'CPF',
-                number: formData.cpf.replace(/\D/g, ''),
-              },
-            },
+          password: formData.password,
+          back_urls: {
+            success: `${window.location.origin}/success`,
+            failure: `${window.location.origin}/failure`,
+            pending: `${window.location.origin}/pending`,
           },
-        });
+        },
+      });
 
-        if (error) throw error;
-
-        if (data?.payment_id && data?.status === 'approved') {
-          navigate('/success');
-        } else if (data?.status === 'pending' || data?.status === 'in_process') {
-          navigate('/pending');
-        } else {
-          navigate('/failure');
-        }
+      if (error) throw error;
+      
+      if (data?.init_point) {
+        window.location.href = data.init_point;
+      } else {
+        throw new Error('URL de pagamento não recebida');
       }
     } catch (error) {
       console.error('Erro no checkout:', error);
@@ -224,9 +141,6 @@ const Checkout = () => {
         description: "Tente novamente em alguns instantes.",
         variant: "destructive",
       });
-      setShowPaymentForm(false);
-      setCardToken(null);
-    } finally {
       setLoading(false);
     }
   };
@@ -307,14 +221,11 @@ const Checkout = () => {
                     </div>
                     Seus Dados
                   </CardTitle>
-                  <Badge variant="outline" className="text-xs">
-                    Passo 1 de 2
-                  </Badge>
                 </div>
               </CardHeader>
               
               <CardContent className="p-4 md:p-6">
-                <form onSubmit={handleContinue} className="space-y-5">
+                <form onSubmit={handleSubmit} className="space-y-5">
                   
                   {/* Nome */}
                   <div>
@@ -411,72 +322,15 @@ const Checkout = () => {
                     </div>
                   </div>
 
-                  {/* Seleção de Método de Pagamento */}
-                  {!showPaymentForm && (
-                    <div className="space-y-4">
-                      <h3 className="text-lg md:text-xl font-bold text-center text-foreground">
-                        Escolha como pagar
-                      </h3>
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                        <button
-                          type="button"
-                          onClick={() => setPaymentMethod('pix')}
-                          className={`p-4 rounded-lg border-2 transition-all ${
-                            paymentMethod === 'pix' 
-                              ? 'border-primary bg-primary/10 shadow-lg scale-105' 
-                              : 'border-border hover:border-primary/50'
-                          }`}
-                        >
-                          <div className="text-center space-y-2">
-                            <div className="text-3xl">📱</div>
-                            <div className="font-bold">PIX</div>
-                            <div className="text-xs text-muted-foreground">Aprovação imediata</div>
-                          </div>
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => setPaymentMethod('credit')}
-                          className={`p-4 rounded-lg border-2 transition-all ${
-                            paymentMethod === 'credit' 
-                              ? 'border-primary bg-primary/10 shadow-lg scale-105' 
-                              : 'border-border hover:border-primary/50'
-                          }`}
-                        >
-                          <div className="text-center space-y-2">
-                            <div className="text-3xl">💳</div>
-                            <div className="font-bold">Crédito</div>
-                            <div className="text-xs text-muted-foreground">À vista</div>
-                          </div>
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => setPaymentMethod('debit')}
-                          className={`p-4 rounded-lg border-2 transition-all ${
-                            paymentMethod === 'debit' 
-                              ? 'border-primary bg-primary/10 shadow-lg scale-105' 
-                              : 'border-border hover:border-primary/50'
-                          }`}
-                        >
-                          <div className="text-center space-y-2">
-                            <div className="text-3xl">💰</div>
-                            <div className="font-bold">Débito</div>
-                            <div className="text-xs text-muted-foreground">Pagamento à vista</div>
-                          </div>
-                        </button>
-                      </div>
-
-                      <Button
-                        type="submit"
-                        className="w-full bg-gradient-to-r from-primary via-primary-glow to-primary hover:opacity-90 text-lg md:text-xl py-6 md:py-8 font-bold shadow-lg"
-                        disabled={loading}
-                      >
-                        <Lock className="w-5 h-5 md:w-6 md:h-6 mr-2" />
-                        CONTINUAR PARA PAGAMENTO
-                      </Button>
-                    </div>
-                  )}
+                  {/* Botão de Finalizar */}
+                  <Button
+                    type="submit"
+                    size="lg"
+                    className="w-full h-14 text-lg font-bold bg-gradient-to-r from-primary to-primary-glow hover:from-primary-glow hover:to-primary shadow-lg transition-all"
+                    disabled={loading}
+                  >
+                    {loading ? "Processando..." : "Ir para Pagamento Seguro"}
+                  </Button>
 
                   {/* Segurança */}
                   <div className="flex flex-wrap items-center justify-center gap-4 md:gap-6 text-xs md:text-sm text-muted-foreground pt-2">
@@ -493,287 +347,261 @@ const Checkout = () => {
               </CardContent>
             </Card>
 
-            {/* Formulário de Pagamento */}
-            {showPaymentForm && (
-              <Card className="border-2 border-primary/50 shadow-xl bg-card/90 backdrop-blur mb-6">
-                <CardHeader className="border-b border-border/50 bg-gradient-to-br from-primary/5 to-transparent p-4 md:p-6">
-                  <div className="flex items-center justify-between flex-wrap gap-3">
-                    <CardTitle className="flex items-center gap-2 text-lg md:text-2xl">
-                      <div className="p-2 bg-primary/10 rounded-lg">
-                        <CreditCard className="w-5 h-5 text-primary" />
-                      </div>
-                      {paymentMethod === 'pix' ? 'Pagamento PIX' : 'Dados do Cartão'}
-                    </CardTitle>
-                    <Badge variant="outline" className="text-xs">
-                      Passo 2 de 2
-                    </Badge>
-                  </div>
-                </CardHeader>
-                
-                <CardContent className="p-4 md:p-6">
-                  {paymentMethod === 'pix' ? (
-                    <div className="text-center space-y-4 py-6">
-                      <div className="text-6xl">📱</div>
-                      <h3 className="text-xl font-bold text-foreground">
-                        Pagamento via PIX
-                      </h3>
-                      <p className="text-muted-foreground">
-                        Você será redirecionado para gerar o QR Code do PIX
-                      </p>
-                    </div>
-                  ) : (
-                    <>
-                      {publicKey ? (
-                        <PaymentForm
-                          onCardTokenChange={setCardToken}
-                          disabled={loading}
-                          publicKey={publicKey}
-                        />
-                      ) : (
-                        <div className="flex items-center justify-center py-8">
-                          <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
-                        </div>
-                      )}
-                    </>
-                  )}
-
-                  <Button
-                    onClick={handleFinalizePayment}
-                    className="w-full bg-gradient-to-r from-primary via-primary-glow to-primary hover:opacity-90 text-lg md:text-xl py-6 md:py-8 font-bold shadow-lg mt-6"
-                    disabled={loading || (paymentMethod !== 'pix' && !cardToken)}
-                  >
-                    {loading ? (
-                      <span className="flex items-center gap-2">
-                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                        Processando...
-                      </span>
-                    ) : (
-                      <>
-                        <CreditCard className="w-5 h-5 md:w-6 md:h-6 mr-2" />
-                        {paymentMethod === 'pix' ? 'GERAR PIX' : 'FINALIZAR PAGAMENTO'}
-                      </>
-                    )}
-                  </Button>
-
-                  <div className="flex flex-wrap items-center justify-center gap-4 md:gap-6 text-xs md:text-sm text-muted-foreground pt-4">
-                    <div className="flex items-center gap-2">
-                      <Shield className="w-4 h-4 md:w-5 md:h-5 text-primary flex-shrink-0" />
-                      <span>Pagamento Seguro</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Lock className="w-4 h-4 md:w-5 md:h-5 text-primary flex-shrink-0" />
-                      <span>SSL Criptografado</span>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Upsell Card */}
-            <Card 
-              className={`border-2 transition-all duration-300 cursor-pointer mb-6 ${
-                hasUpsell 
-                  ? 'border-secondary bg-gradient-to-br from-secondary/20 via-secondary/10 to-transparent shadow-lg' 
-                  : 'border-border/50 bg-card/90 hover:border-secondary/50'
-              }`}
-              onClick={() => setHasUpsell(!hasUpsell)}
-            >
-              <CardContent className="p-4 md:p-6">
-                <div className="flex items-start gap-3 mb-4">
-                  <div className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center flex-shrink-0 transition-all ${
-                    hasUpsell ? 'bg-secondary border-secondary' : 'border-border'
-                  }`}>
-                    {hasUpsell && <Check className="w-4 h-4 text-white" />}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <Badge className="bg-gradient-to-r from-secondary to-secondary-glow text-white text-xs px-3 py-1 mb-2 animate-pulse inline-block">
-                      🎁 OFERTA ESPECIAL
-                    </Badge>
-                    <h3 className="font-bold text-lg md:text-xl text-foreground">
-                      Adicionar {pack2Name}
-                    </h3>
+            {/* Informação de Métodos de Pagamento */}
+            <Card className="border-2 border-primary/30 shadow-xl bg-card/90 backdrop-blur mb-6">
+              <CardHeader className="p-4 md:p-6 border-b border-border/50">
+                <CardTitle className="flex items-center gap-2 text-lg md:text-xl">
+                  <Sparkles className="w-5 h-5 text-primary" />
+                  Formas de Pagamento
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-4 md:p-6 space-y-3">
+                <div className="flex items-center gap-3 p-3 bg-primary/5 rounded-lg">
+                  <div className="text-2xl">📱</div>
+                  <div>
+                    <p className="font-semibold text-foreground">PIX</p>
+                    <p className="text-xs text-muted-foreground">Aprovação imediata</p>
                   </div>
                 </div>
-
-                <div className="space-y-2 mb-4 ml-9">
-                  {[
-                    "Planner Financeiro Completo",
-                    "+50 Dashboards Premium",
-                    "Controle financeiro automático",
-                    "Acesso vitalício"
-                  ].map((benefit, i) => (
-                    <div key={i} className="flex items-center gap-2 text-xs md:text-sm">
-                      <Star className="w-3.5 h-3.5 md:w-4 md:h-4 text-secondary fill-secondary flex-shrink-0" />
-                      <span className="text-muted-foreground">{benefit}</span>
-                    </div>
-                  ))}
+                <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
+                  <div className="text-2xl">💳</div>
+                  <div>
+                    <p className="font-semibold text-foreground">Cartão de Crédito</p>
+                    <p className="text-xs text-muted-foreground">Parcelamento disponível</p>
+                  </div>
                 </div>
-
-                <div className="ml-9 flex flex-wrap items-center gap-2">
-                  <span className="text-xs md:text-sm text-muted-foreground line-through whitespace-nowrap tabular-nums">
-                    De R$ {pack2OriginalPrice.toFixed(2).replace('.', ',')}
-                  </span>
-                  <span className="text-2xl md:text-3xl font-black text-secondary whitespace-nowrap tabular-nums">
-                    R$ {pack2Price.toFixed(2).replace('.', ',')}
-                  </span>
-                  <Badge className="bg-red-600 text-white text-xs px-2 py-0.5 border-0 flex-shrink-0">
-                    48% OFF
-                  </Badge>
-                </div>
-
-                <div className="mt-4 ml-9 p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg">
-                  <p className="text-xs text-amber-600 dark:text-amber-400 font-medium flex items-start gap-2">
-                    <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
-                    <span>Oferta disponível apenas durante o checkout!</span>
-                  </p>
+                <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
+                  <div className="text-2xl">📄</div>
+                  <div>
+                    <p className="font-semibold text-foreground">Boleto Bancário</p>
+                    <p className="text-xs text-muted-foreground">Compensação em até 2 dias</p>
+                  </div>
                 </div>
               </CardContent>
             </Card>
 
-            {/* Garantia Card */}
-            <Card className="border-2 border-primary/30 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent shadow-lg">
+            {/* Card Upsell */}
+            <Card className="border-2 border-primary/50 shadow-xl bg-gradient-to-br from-primary/10 via-background to-background mb-6 relative overflow-hidden">
+              <div className="absolute top-0 right-0 bg-gradient-to-br from-primary to-primary-glow text-white px-4 py-1 rounded-bl-xl font-bold text-sm shadow-lg">
+                OFERTA ESPECIAL
+              </div>
+              
+              <CardHeader className="p-4 md:p-6 pt-12 border-b border-border/50">
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="w-6 h-6 text-primary animate-pulse" />
+                    <CardTitle className="text-lg md:text-2xl">
+                      Adicione {pack2Name}
+                    </CardTitle>
+                  </div>
+                  <p className="text-xs md:text-sm text-muted-foreground">
+                    + Planner Financeiro Premium + 50 Dashboards Profissionais
+                  </p>
+                </div>
+              </CardHeader>
+              
               <CardContent className="p-4 md:p-6 space-y-4">
-                <div className="flex items-start gap-4">
-                  <div className="w-12 h-12 md:w-14 md:h-14 rounded-xl bg-gradient-to-br from-primary to-primary-glow flex items-center justify-center flex-shrink-0 shadow-lg">
-                    <Shield className="w-6 h-6 md:w-7 md:h-7 text-white" />
+                <div className="space-y-3">
+                  <div className="flex items-start gap-2">
+                    <Check className="w-5 h-5 text-primary flex-shrink-0 mt-1" />
+                    <div>
+                      <p className="font-semibold text-sm md:text-base">Planner Financeiro Anual</p>
+                      <p className="text-xs text-muted-foreground">Controle total das suas finanças</p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-start gap-2">
+                    <Check className="w-5 h-5 text-primary flex-shrink-0 mt-1" />
+                    <div>
+                      <p className="font-semibold text-sm md:text-base">50 Dashboards Profissionais</p>
+                      <p className="text-xs text-muted-foreground">Visualizações e análises poderosas</p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-start gap-2">
+                    <Check className="w-5 h-5 text-primary flex-shrink-0 mt-1" />
+                    <div>
+                      <p className="font-semibold text-sm md:text-base">Templates Exclusivos</p>
+                      <p className="text-xs text-muted-foreground">Designs únicos e personalizáveis</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-gradient-to-r from-primary/10 via-primary/5 to-primary/10 border border-primary/30 rounded-lg p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <div>
+                      <p className="text-xs text-muted-foreground line-through">
+                        De R$ {pack2OriginalPrice.toFixed(2)}
+                      </p>
+                      <p className="text-2xl md:text-3xl font-black text-primary">
+                        por R$ {pack2Price.toFixed(2)}
+                      </p>
+                      <p className="text-xs text-primary font-semibold">
+                        93% de desconto • Hoje apenas!
+                      </p>
+                    </div>
+                    <Badge className="bg-gradient-to-r from-destructive to-orange-500 text-white px-3 py-1 text-xs md:text-sm font-bold shadow-lg">
+                      -93%
+                    </Badge>
+                  </div>
+                  
+                  <Button
+                    onClick={() => setHasUpsell(!hasUpsell)}
+                    variant={hasUpsell ? "default" : "outline"}
+                    className={`w-full h-12 font-bold text-sm md:text-base transition-all ${
+                      hasUpsell
+                        ? 'bg-gradient-to-r from-primary to-primary-glow hover:from-primary-glow hover:to-primary'
+                        : 'hover:bg-primary/10'
+                    }`}
+                  >
+                    {hasUpsell ? (
+                      <>
+                        <Check className="w-5 h-5 mr-2" />
+                        Adicionado ao Pedido
+                      </>
+                    ) : (
+                      'Adicionar ao Pedido'
+                    )}
+                  </Button>
+                </div>
+
+                <div className="flex items-center gap-2 text-xs text-muted-foreground justify-center">
+                  <TrendingUp className="w-4 h-4 text-primary" />
+                  <span>89% dos clientes adicionaram este pacote</span>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Garantia */}
+            <Card className="border-2 border-primary/30 shadow-xl bg-gradient-to-br from-primary/5 to-background mb-6">
+              <CardContent className="p-4 md:p-6">
+                <div className="flex flex-col sm:flex-row items-center gap-4 text-center sm:text-left">
+                  <div className="p-3 bg-primary/10 rounded-full flex-shrink-0">
+                    <Shield className="w-8 h-8 text-primary" />
                   </div>
                   <div>
-                    <h3 className="font-bold text-lg md:text-xl mb-2 text-primary">Garantia de 7 Dias</h3>
-                    <p className="text-xs md:text-sm text-muted-foreground leading-relaxed">
-                      Satisfação garantida ou seu dinheiro de volta. Sem perguntas, sem complicações.
+                    <h3 className="font-black text-base md:text-lg mb-1">
+                      Garantia de 7 Dias
+                    </h3>
+                    <p className="text-xs md:text-sm text-muted-foreground">
+                      Se não gostar, devolvemos 100% do seu dinheiro. Sem perguntas.
                     </p>
                   </div>
                 </div>
               </CardContent>
             </Card>
+
           </div>
 
-          {/* Resumo do Pedido - Sidebar */}
-          <div className="w-full lg:w-96 lg:sticky lg:top-6">
-            <Card className="border-2 border-primary/50 bg-gradient-to-br from-card via-card to-primary/5 shadow-xl backdrop-blur">
-              <CardHeader className="border-b border-border/50 bg-gradient-to-r from-primary/10 to-transparent p-4 md:p-6">
-                <CardTitle className="text-lg md:text-2xl flex items-center gap-2">
-                  <Sparkles className="w-5 h-5 md:w-6 md:h-6 text-primary flex-shrink-0" />
-                  Resumo do Pedido
-                </CardTitle>
-              </CardHeader>
-              
-              <CardContent className="p-4 md:p-6 space-y-5">
+          {/* Coluna Resumo - Sticky Sidebar */}
+          <div className="w-full lg:w-[400px]">
+            <div className="lg:sticky lg:top-6">
+              <Card className="border-2 border-primary/50 shadow-2xl bg-gradient-to-br from-card to-card/50 backdrop-blur">
+                <CardHeader className="border-b border-border/50 bg-gradient-to-br from-primary/10 to-transparent p-4 md:p-6">
+                  <CardTitle className="flex items-center gap-2 text-lg md:text-2xl">
+                    <Star className="w-6 h-6 text-primary" />
+                    Resumo do Pedido
+                  </CardTitle>
+                </CardHeader>
                 
-                {/* Pack 1 */}
-                <div className="bg-gradient-to-br from-primary/5 to-transparent rounded-xl p-4 border border-primary/20">
-                  <div className="flex justify-between items-start mb-3">
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-bold text-base md:text-lg text-foreground mb-1">{pack1Name}</h3>
-                      <p className="text-xs md:text-sm text-muted-foreground">6.000 Planilhas Excel Profissionais</p>
-                    </div>
-                    <Check className="w-5 h-5 text-primary flex-shrink-0 ml-2" />
-                  </div>
-                  <div className="space-y-2 mb-3">
-                    {["6.000 Planilhas Excel", "Templates para Todos os Negócios", "Suporte Vitalício", "Atualizações Gratuitas"].map((item, i) => (
-                      <div key={i} className="flex items-center gap-2 text-xs md:text-sm">
-                        <Check className="w-3.5 h-3.5 text-primary flex-shrink-0" />
-                        <span className="text-muted-foreground">{item}</span>
-                      </div>
-                    ))}
-                  </div>
-                  <div className="pt-3 border-t border-border/50 flex flex-wrap items-center gap-2">
-                    <span className="text-xs md:text-sm text-muted-foreground line-through whitespace-nowrap tabular-nums">
-                      De R$ {pack1OriginalPrice.toFixed(2).replace('.', ',')}
-                    </span>
-                    <span className="text-2xl md:text-3xl font-black text-primary whitespace-nowrap tabular-nums">
-                      R$ {pack1Price.toFixed(2).replace('.', ',')}
-                    </span>
-                    <Badge className="bg-red-600 text-white text-xs px-2 py-0.5 border-0 flex-shrink-0">
-                      93% OFF
-                    </Badge>
-                  </div>
-                </div>
-
-                {/* Pack 2 (se selecionado) */}
-                {hasUpsell && (
-                  <div className="bg-gradient-to-br from-secondary/10 to-transparent rounded-xl p-4 border-2 border-secondary/40 animate-in slide-in-from-right duration-500">
-                    <div className="flex justify-between items-start mb-3">
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-bold text-base md:text-lg text-foreground mb-1">{pack2Name}</h3>
-                        <p className="text-xs md:text-sm text-muted-foreground">Planner + 50 Dashboards Premium</p>
-                      </div>
-                      <Check className="w-5 h-5 text-secondary flex-shrink-0 ml-2" />
-                    </div>
-                    <div className="space-y-2 mb-3">
-                      {["Planner Financeiro Completo", "+50 Dashboards Premium", "Controle Automático", "Acesso Vitalício"].map((item, i) => (
-                        <div key={i} className="flex items-center gap-2 text-xs md:text-sm">
-                          <Star className="w-3.5 h-3.5 text-secondary fill-secondary flex-shrink-0" />
-                          <span className="text-muted-foreground">{item}</span>
-                        </div>
-                      ))}
-                    </div>
-                    <div className="pt-3 border-t border-border/50 flex flex-wrap items-center gap-2">
-                      <span className="text-xs md:text-sm text-muted-foreground line-through whitespace-nowrap tabular-nums">
-                        De R$ {pack2OriginalPrice.toFixed(2).replace('.', ',')}
-                      </span>
-                      <span className="text-2xl md:text-3xl font-black text-secondary whitespace-nowrap tabular-nums">
-                        R$ {pack2Price.toFixed(2).replace('.', ',')}
-                      </span>
-                      <Badge className="bg-red-600 text-white text-xs px-2 py-0.5 border-0 flex-shrink-0">
-                        48% OFF
-                      </Badge>
-                    </div>
-                  </div>
-                )}
-
-                {/* Total */}
-                <div className="pt-5 border-t-2 border-primary/20">
-                  <div className="flex justify-between items-start mb-3">
-                    <span className="text-lg md:text-xl font-bold text-foreground">TOTAL</span>
-                    <div className="text-right">
-                      <div className="text-3xl md:text-4xl font-black bg-gradient-to-r from-primary via-primary-glow to-primary bg-clip-text text-transparent whitespace-nowrap tabular-nums">
-                        R$ {totalPrice.toFixed(2).replace('.', ',')}
-                      </div>
-                      <div className="text-xs md:text-sm text-muted-foreground whitespace-nowrap tabular-nums mt-1">
-                        ou 12x de R$ {(totalPrice / 12).toFixed(2).replace('.', ',')}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Prova Social */}
-                <div className="space-y-3 pt-5 border-t border-border/50">
-                  <h4 className="font-bold text-xs md:text-sm text-muted-foreground uppercase tracking-wider">Prova Social</h4>
+                <CardContent className="p-4 md:p-6 space-y-6">
+                  {/* Pack 1 */}
                   <div className="space-y-2">
-                    <div className="flex items-center gap-3 p-3 bg-primary/5 rounded-lg">
-                      <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                        <Users className="w-4 h-4 md:w-5 md:h-5 text-primary" />
+                    <div className="flex justify-between items-start">
+                      <div className="flex-1">
+                        <p className="font-bold text-sm md:text-base">{pack1Name}</p>
+                        <p className="text-xs text-muted-foreground">6.000 planilhas Excel</p>
                       </div>
-                      <span className="text-xs md:text-sm min-w-0">
-                        <strong className="text-primary text-base md:text-lg font-bold tabular-nums">{buyersCount.toLocaleString('pt-BR')}</strong>
-                        <span className="text-muted-foreground"> pessoas compraram hoje</span>
+                      <div className="text-right">
+                        <p className="text-xs text-muted-foreground line-through">
+                          R$ {pack1OriginalPrice.toFixed(2)}
+                        </p>
+                        <p className="font-bold text-primary text-base md:text-lg">
+                          R$ {pack1Price.toFixed(2)}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Pack 2 */}
+                  {hasUpsell && (
+                    <div className="space-y-2 p-3 bg-primary/5 rounded-lg border border-primary/20">
+                      <div className="flex justify-between items-start">
+                        <div className="flex-1">
+                          <p className="font-bold text-sm md:text-base">{pack2Name}</p>
+                          <p className="text-xs text-muted-foreground">Planner + 50 Dashboards</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-xs text-muted-foreground line-through">
+                            R$ {pack2OriginalPrice.toFixed(2)}
+                          </p>
+                          <p className="font-bold text-primary text-base md:text-lg">
+                            R$ {pack2Price.toFixed(2)}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="border-t border-border/50 pt-4 space-y-3">
+                    <div className="flex justify-between items-center text-xs md:text-sm">
+                      <span className="text-muted-foreground">Subtotal</span>
+                      <span className="font-semibold">R$ {totalPrice.toFixed(2)}</span>
+                    </div>
+                    
+                    <div className="flex justify-between items-center text-xs md:text-sm">
+                      <span className="text-muted-foreground">Desconto</span>
+                      <span className="font-semibold text-primary">
+                        -R$ {hasUpsell 
+                          ? ((pack1OriginalPrice + pack2OriginalPrice) - totalPrice).toFixed(2)
+                          : (pack1OriginalPrice - pack1Price).toFixed(2)
+                        }
                       </span>
                     </div>
-                    <div className="flex items-center gap-3 p-3 bg-primary/5 rounded-lg">
-                      <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                        <Clock className="w-4 h-4 md:w-5 md:h-5 text-primary" />
+                    
+                    <div className="bg-gradient-to-r from-primary/10 via-primary/5 to-primary/10 border border-primary/30 rounded-lg p-4">
+                      <div className="flex justify-between items-baseline">
+                        <span className="text-base md:text-lg font-bold">Total</span>
+                        <div className="text-right">
+                          <p className="text-3xl md:text-4xl font-black text-primary">
+                            R$ {totalPrice.toFixed(2)}
+                          </p>
+                          <p className="text-xs text-primary font-semibold">
+                            Acesso imediato após pagamento
+                          </p>
+                        </div>
                       </div>
-                      <span className="text-xs md:text-sm">
-                        <span className="text-muted-foreground">Acesso </span>
-                        <strong className="text-foreground">imediato</strong>
-                        <span className="text-muted-foreground"> após pagamento</span>
+                    </div>
+                  </div>
+
+                  {/* Prova Social */}
+                  <div className="space-y-3 pt-4 border-t border-border/50">
+                    <div className="flex items-center gap-2 text-xs md:text-sm">
+                      <Users className="w-4 h-4 text-primary flex-shrink-0" />
+                      <span className="text-muted-foreground">
+                        <span className="font-bold text-primary">{buyersCount.toLocaleString()}</span> pessoas compraram
                       </span>
                     </div>
-                    <div className="flex items-center gap-3 p-3 bg-primary/5 rounded-lg">
-                      <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                        <TrendingUp className="w-4 h-4 md:w-5 md:h-5 text-primary" />
-                      </div>
-                      <span className="text-xs md:text-sm">
-                        <strong className="text-primary text-base md:text-lg font-bold tabular-nums">98%</strong>
-                        <span className="text-muted-foreground"> de satisfação</span>
+                    
+                    <div className="flex items-center gap-2 text-xs md:text-sm">
+                      <Star className="w-4 h-4 text-primary fill-primary flex-shrink-0" />
+                      <span className="text-muted-foreground">
+                        Avaliação <span className="font-bold text-primary">4.9/5.0</span>
+                      </span>
+                    </div>
+                    
+                    <div className="flex items-center gap-2 text-xs md:text-sm">
+                      <Shield className="w-4 h-4 text-primary flex-shrink-0" />
+                      <span className="text-muted-foreground">
+                        Compra <span className="font-bold text-primary">100% Segura</span>
                       </span>
                     </div>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            </div>
           </div>
+
         </div>
       </div>
     </div>
