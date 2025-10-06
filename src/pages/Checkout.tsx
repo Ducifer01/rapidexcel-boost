@@ -166,7 +166,7 @@ const Checkout = () => {
   const randomNotification = notifications[Math.floor(Math.random() * notifications.length)];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 py-4 md:py-8 px-3 md:px-4">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 py-4 md:py-8 px-4 md:px-6">
       {/* Notificação de compra em tempo real */}
       {showNotification && (
         <div className="fixed bottom-6 left-6 z-50 animate-in slide-in-from-left duration-500">
@@ -199,20 +199,22 @@ const Checkout = () => {
           </p>
           
           {/* Cronômetro de Urgência */}
-          <div className="inline-flex items-center gap-3 bg-gradient-to-r from-destructive/20 via-orange-500/20 to-destructive/20 border-2 border-destructive/50 rounded-full px-6 py-3 shadow-lg animate-pulse">
-            <Clock className="w-5 h-5 text-destructive" />
-            <span className="text-sm font-semibold text-foreground">
-              Esta oferta termina em:
-            </span>
-            <span className="text-2xl font-black text-destructive tabular-nums">
+          <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-3 bg-gradient-to-r from-destructive/20 via-orange-500/20 to-destructive/20 border-2 border-destructive/50 rounded-2xl px-4 sm:px-6 py-3 shadow-lg animate-pulse max-w-md mx-auto">
+            <div className="flex items-center gap-2">
+              <Clock className="w-5 h-5 text-destructive flex-shrink-0" />
+              <span className="text-sm font-semibold text-foreground whitespace-nowrap">
+                Oferta termina em:
+              </span>
+            </div>
+            <span className="text-2xl sm:text-3xl font-black text-destructive tabular-nums whitespace-nowrap">
               {formatTime(timeLeft)}
             </span>
           </div>
         </div>
 
-        <div className="grid lg:grid-cols-2 gap-8 items-start">
+        <div className="flex flex-col lg:flex-row gap-6 lg:gap-8 items-start">
           {/* Coluna esquerda - Formulário */}
-          <div className="space-y-6">
+          <div className="w-full lg:flex-1 space-y-6 max-w-2xl mx-auto lg:mx-0">
             <Card className="border-2 border-border/50 shadow-2xl bg-card/80 backdrop-blur">
               <CardHeader className="border-b border-border/50 bg-gradient-to-br from-primary/5 to-transparent">
                 <div className="flex items-center justify-between">
@@ -230,17 +232,17 @@ const Checkout = () => {
               <CardContent className="pt-6">
                 <form onSubmit={handleContinue} className="space-y-6">
                   <div className="space-y-4">
-                    <div>
-                      <Label htmlFor="name">Nome Completo *</Label>
+                     <div>
+                      <Label htmlFor="name" className="text-base font-semibold">Nome Completo *</Label>
                       <Input
                         id="name"
                         placeholder="Como está no seu documento"
                         value={formData.name}
                         onChange={(e) => handleInputChange('name', e.target.value)}
-                        className={errors.name ? "border-destructive" : ""}
+                        className={errors.name ? "border-destructive h-12" : "h-12"}
                         disabled={loading}
                       />
-                      {errors.name && <p className="text-sm text-destructive mt-1">{errors.name}</p>}
+                      {errors.name && <p className="text-sm text-destructive mt-1.5 flex items-center gap-1"><AlertCircle className="w-3 h-3" />{errors.name}</p>}
                     </div>
 
                     <div>
@@ -369,10 +371,10 @@ const Checkout = () => {
                       ))}
                     </div>
 
-                    <div className="ml-9 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
-                      <span className="text-sm text-muted-foreground line-through whitespace-nowrap">De R$ {pack2OriginalPrice.toFixed(2)}</span>
-                      <span className="text-3xl font-black text-secondary whitespace-nowrap">R$ {pack2Price.toFixed(2).replace('.', ',')}</span>
-                      <Badge className="bg-red-600 hover:bg-red-700 text-white text-xs px-3 py-1.5 shadow-lg border-0 w-fit">
+                    <div className="ml-9 flex flex-wrap items-center gap-2">
+                      <span className="text-sm text-muted-foreground line-through whitespace-nowrap tabular-nums">De R$ {pack2OriginalPrice.toFixed(2).replace('.', ',')}</span>
+                      <span className="text-2xl sm:text-3xl font-black text-secondary whitespace-nowrap tabular-nums">R$ {pack2Price.toFixed(2).replace('.', ',')}</span>
+                      <Badge className="bg-red-600 hover:bg-red-700 text-white text-xs px-2.5 py-1 shadow-lg border-0 flex-shrink-0">
                         48% OFF
                       </Badge>
                     </div>
@@ -428,34 +430,37 @@ const Checkout = () => {
             </Card>
           </div>
 
-          {/* Coluna direita - Resumo */}
-          <div className="lg:sticky lg:top-8 space-y-6">
-            <Card className="border-2 border-border/50 shadow-2xl bg-card/80 backdrop-blur">
-              <CardHeader className="border-b border-border/50 bg-gradient-to-br from-secondary/5 to-transparent">
-                <CardTitle className="text-2xl">Resumo do Pedido</CardTitle>
+          {/* Coluna direita - Resumo do Pedido */}
+          <div className="w-full lg:w-96 lg:sticky lg:top-8 max-w-2xl mx-auto lg:mx-0">
+            <Card className="border-2 border-primary/50 bg-gradient-to-br from-card via-card to-primary/5 shadow-[0_0_50px_rgba(var(--primary),0.2)] backdrop-blur">
+              <CardHeader className="border-b border-border/50 bg-gradient-to-r from-primary/10 to-transparent p-4 sm:p-6">
+                <CardTitle className="text-xl sm:text-2xl flex items-center gap-3">
+                  <Sparkles className="w-5 h-5 sm:w-6 sm:h-6 text-primary flex-shrink-0" />
+                  Resumo do Pedido
+                </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-6 pt-6">
-                <div className="space-y-5">
+              <CardContent className="p-4 sm:p-6 space-y-4 sm:space-y-6">
+                <div className="space-y-4 sm:space-y-5">
                   {/* Pack 1 */}
-                  <div className="bg-gradient-to-br from-primary/5 to-transparent rounded-xl p-5 border border-primary/20 space-y-3">
+                  <div className="bg-gradient-to-br from-primary/5 to-transparent rounded-xl p-4 sm:p-5 border border-primary/20 space-y-3">
                     <div className="flex justify-between items-start mb-4">
-                      <div className="flex-1">
-                        <h3 className="font-bold text-lg mb-1">{pack1Name}</h3>
-                        <p className="text-sm text-muted-foreground">6.000 Planilhas Excel Profissionais</p>
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-bold text-base sm:text-lg mb-1">{pack1Name}</h3>
+                        <p className="text-xs sm:text-sm text-muted-foreground">6.000 Planilhas Excel Profissionais</p>
                       </div>
                     </div>
                     <div className="space-y-2 mb-4">
                       {["6.000 Planilhas Excel", "Templates para Todos os Negócios", "Suporte Vitalício", "Atualizações Gratuitas"].map((item, i) => (
-                        <div key={i} className="flex items-center gap-2 text-sm">
-                          <Check className="w-4 h-4 text-primary" />
+                        <div key={i} className="flex items-center gap-2 text-xs sm:text-sm">
+                          <Check className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-primary flex-shrink-0" />
                           <span>{item}</span>
                         </div>
                       ))}
                     </div>
-                    <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 pt-4 border-t border-border/50">
-                      <span className="text-sm text-muted-foreground line-through whitespace-nowrap">De R$ {pack1OriginalPrice.toFixed(2)}</span>
-                      <span className="text-3xl font-black text-primary whitespace-nowrap">R$ {pack1Price.toFixed(2).replace('.', ',')}</span>
-                      <Badge className="bg-red-600 hover:bg-red-700 text-white text-xs px-3 py-1.5 shadow-lg border-0 w-fit">
+                    <div className="flex flex-wrap items-center gap-2 pt-4 border-t border-border/50">
+                      <span className="text-xs sm:text-sm text-muted-foreground line-through whitespace-nowrap tabular-nums">De R$ {pack1OriginalPrice.toFixed(2).replace('.', ',')}</span>
+                      <span className="text-2xl sm:text-3xl font-black text-primary whitespace-nowrap tabular-nums">R$ {pack1Price.toFixed(2).replace('.', ',')}</span>
+                      <Badge className="bg-red-600 hover:bg-red-700 text-white text-xs px-2.5 py-1 shadow-lg border-0 flex-shrink-0">
                         93% OFF
                       </Badge>
                     </div>
@@ -463,28 +468,25 @@ const Checkout = () => {
 
                   {/* Pack 2 (se adicionado) */}
                   {hasUpsell && (
-                    <div className="bg-gradient-to-br from-secondary/10 to-transparent rounded-xl p-5 border-2 border-secondary/40 animate-in slide-in-from-right duration-500">
-                      <Badge className="mb-3 bg-gradient-to-r from-secondary to-secondary-glow text-white animate-pulse">
-                        ✓ ADICIONADO!
-                      </Badge>
+                    <div className="bg-gradient-to-br from-secondary/10 to-transparent rounded-xl p-4 sm:p-5 border-2 border-secondary/40 animate-in slide-in-from-right duration-500">
                       <div className="flex justify-between items-start mb-4">
-                        <div className="flex-1">
-                          <h3 className="font-bold text-lg mb-1">{pack2Name}</h3>
-                          <p className="text-sm text-muted-foreground">Planner + 50 Dashboards Premium</p>
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-bold text-base sm:text-lg mb-1">{pack2Name}</h3>
+                          <p className="text-xs sm:text-sm text-muted-foreground">Planner + 50 Dashboards Premium</p>
                         </div>
                       </div>
                       <div className="space-y-2 mb-4">
                         {["Planner Financeiro Completo", "+50 Dashboards Premium", "Controle Automático", "Acesso Vitalício"].map((item, i) => (
-                          <div key={i} className="flex items-center gap-2 text-sm">
-                            <Star className="w-4 h-4 text-secondary fill-secondary" />
+                          <div key={i} className="flex items-center gap-2 text-xs sm:text-sm">
+                            <Star className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-secondary fill-secondary flex-shrink-0" />
                             <span>{item}</span>
                           </div>
                         ))}
                       </div>
-                      <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 pt-4 border-t border-border/50">
-                        <span className="text-sm text-muted-foreground line-through whitespace-nowrap">De R$ {pack2OriginalPrice.toFixed(2)}</span>
-                        <span className="text-3xl font-black text-secondary whitespace-nowrap">R$ {pack2Price.toFixed(2).replace('.', ',')}</span>
-                        <Badge className="bg-red-600 hover:bg-red-700 text-white text-xs px-3 py-1.5 shadow-lg border-0 w-fit">
+                      <div className="flex flex-wrap items-center gap-2 pt-4 border-t border-border/50">
+                        <span className="text-xs sm:text-sm text-muted-foreground line-through whitespace-nowrap tabular-nums">De R$ {pack2OriginalPrice.toFixed(2).replace('.', ',')}</span>
+                        <span className="text-2xl sm:text-3xl font-black text-secondary whitespace-nowrap tabular-nums">R$ {pack2Price.toFixed(2).replace('.', ',')}</span>
+                        <Badge className="bg-red-600 hover:bg-red-700 text-white text-xs px-2.5 py-1 shadow-lg border-0 flex-shrink-0">
                           48% OFF
                         </Badge>
                       </div>
@@ -492,15 +494,15 @@ const Checkout = () => {
                   )}
                 </div>
 
-                <div className="border-t-2 border-border pt-6 space-y-3">
-                  <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 text-xl">
-                    <span className="font-bold">TOTAL</span>
-                    <div className="text-left sm:text-right">
-                      <div className="text-4xl font-black text-primary mb-1 whitespace-nowrap">
+                <div className="border-t-2 border-border pt-4 sm:pt-6 space-y-3">
+                  <div className="flex justify-between items-start gap-3">
+                    <span className="font-bold text-lg sm:text-xl">TOTAL</span>
+                    <div className="text-right">
+                      <div className="text-3xl sm:text-4xl font-black text-primary mb-1 whitespace-nowrap tabular-nums">
                         R$ {totalPrice.toFixed(2).replace('.', ',')}
                       </div>
                       {hasUpsell && (
-                        <Badge className="bg-gradient-to-r from-secondary to-secondary-glow text-white text-sm w-fit">
+                        <Badge className="bg-gradient-to-r from-secondary to-secondary-glow text-white text-xs sm:text-sm">
                           Você economizou R$ 12,01
                         </Badge>
                       )}
@@ -509,34 +511,34 @@ const Checkout = () => {
                 </div>
 
                 {/* Social Proof */}
-                <div className="space-y-4 pt-6 border-t border-border/50">
-                  <h4 className="font-bold text-sm text-muted-foreground uppercase tracking-wider">Prova Social</h4>
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-3 p-3 bg-primary/5 rounded-lg">
-                      <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                        <Users className="w-5 h-5 text-primary" />
+                <div className="space-y-3 sm:space-y-4 pt-4 sm:pt-6 border-t border-border/50">
+                  <h4 className="font-bold text-xs sm:text-sm text-muted-foreground uppercase tracking-wider">Prova Social</h4>
+                  <div className="space-y-2 sm:space-y-3">
+                    <div className="flex items-center gap-2 sm:gap-3 p-3 bg-primary/5 rounded-lg">
+                      <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                        <Users className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
                       </div>
-                      <span className="text-sm">
-                        <strong className="text-primary text-lg font-bold">{buyersCount.toLocaleString('pt-BR')}</strong>
+                      <span className="text-xs sm:text-sm min-w-0">
+                        <strong className="text-primary text-base sm:text-lg font-bold tabular-nums">{buyersCount.toLocaleString('pt-BR')}</strong>
                         <span className="text-muted-foreground"> pessoas compraram hoje</span>
                       </span>
                     </div>
-                    <div className="flex items-center gap-3 p-3 bg-primary/5 rounded-lg">
-                      <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                        <Clock className="w-5 h-5 text-primary" />
+                    <div className="flex items-center gap-2 sm:gap-3 p-3 bg-primary/5 rounded-lg">
+                      <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                        <Clock className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
                       </div>
-                      <span className="text-sm">
+                      <span className="text-xs sm:text-sm">
                         <span className="text-muted-foreground">Acesso </span>
                         <strong className="text-foreground">imediato</strong>
                         <span className="text-muted-foreground"> após pagamento</span>
                       </span>
                     </div>
-                    <div className="flex items-center gap-3 p-3 bg-primary/5 rounded-lg">
-                      <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                        <TrendingUp className="w-5 h-5 text-primary" />
+                    <div className="flex items-center gap-2 sm:gap-3 p-3 bg-primary/5 rounded-lg">
+                      <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                        <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
                       </div>
-                      <span className="text-sm">
-                        <strong className="text-primary text-lg font-bold">98%</strong>
+                      <span className="text-xs sm:text-sm min-w-0">
+                        <strong className="text-primary text-base sm:text-lg font-bold tabular-nums">98%</strong>
                         <span className="text-muted-foreground"> de satisfação</span>
                       </span>
                     </div>
