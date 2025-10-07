@@ -140,6 +140,33 @@ export type Database = {
         }
         Relationships: []
       }
+      site_settings: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          id: string
+          key: string
+          updated_at: string | null
+          value: string
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          key: string
+          updated_at?: string | null
+          value: string
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          key?: string
+          updated_at?: string | null
+          value?: string
+        }
+        Relationships: []
+      }
       users: {
         Row: {
           created_at: string | null
@@ -169,6 +196,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      expire_old_pending_purchases: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
       user_has_product_access: {
         Args: { _product_name: string; _user_id: string }
         Returns: boolean
