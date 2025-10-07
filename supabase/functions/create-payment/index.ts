@@ -18,8 +18,8 @@ serve(async (req) => {
   try {
     logStep('Iniciando criação de pagamento');
     
-    const { product_ids, payer, back_urls, password } = await req.json();
-    logStep('Dados recebidos', { product_ids, payer_email: payer?.email });
+    const { product_ids, payer, back_urls, password, authenticated_user_id } = await req.json();
+    logStep('Dados recebidos', { product_ids, payer_email: payer?.email, authenticated: !!authenticated_user_id });
 
     // VALIDAÇÃO DE SEGURANÇA: Preços definidos NO SERVIDOR
     const VALID_PRODUCTS = {
@@ -85,50 +85,48 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    // 1. CRIAR USUÁRIO IMEDIATAMENTE (se não existir)
-    logStep('Verificando/Criando usuário', { email: payer.email });
-    
+    // 1. VERIFICAR/CRIAR USUÁRIO
     let authUserId: string | null = null;
+    let newUser: any = null;
     
-    // Tentar criar o usuário diretamente
-    const { data: newUser, error: authError } = await supabase.auth.admin.createUser({
-      email: payer.email,
-      password: password,
-      email_confirm: true,
-      user_metadata: {
-        name: payer.name,
-      }
-    });
-
-    if (authError) {
-      // Se erro é "email_exists", buscar o usuário existente
-      if (authError.code === 'email_exists') {
-        logStep('Email já existe, buscando usuário', { email: payer.email });
-        
-        // Usar listUsers para buscar o usuário (não há getUserByEmail na API)
-        const { data: existingUsers } = await supabase.auth.admin.listUsers();
-        const existingUser = existingUsers?.users?.find(u => u.email === payer.email);
-        
-        if (existingUser) {
-          authUserId = existingUser.id;
-          logStep('Usuário encontrado', { userId: authUserId });
-        } else {
-          logStep('ERRO: Email existe mas usuário não foi encontrado');
-          throw new Error('Email existe mas usuário não foi encontrado');
+    if (authenticated_user_id) {
+      // Usuário já autenticado comprando do Dashboard
+      logStep('Compra de usuário autenticado', { userId: authenticated_user_id });
+      authUserId = authenticated_user_id;
+    } else {
+      // Fluxo de checkout público (novos usuários)
+      logStep('Verificando/Criando usuário', { email: payer.email });
+      
+      // Tentar criar o usuário diretamente
+      const { data: userData, error: authError } = await supabase.auth.admin.createUser({
+        email: payer.email,
+        password: password,
+        email_confirm: true,
+        user_metadata: {
+          name: payer.name,
         }
-      } else {
-        // Outro erro ao criar usuário
-        logStep('ERRO ao criar usuário', authError);
-        throw new Error(`Erro ao criar usuário: ${authError?.message}`);
-      }
-    } else if (newUser?.user) {
-      // Usuário criado com sucesso
-      authUserId = newUser.user.id;
-      logStep('Usuário criado com sucesso', { userId: authUserId });
-    }
+      });
 
-    if (!authUserId) {
-      throw new Error('Não foi possível obter ID do usuário');
+      if (authError) {
+        // Se erro é "email_exists", usuário não deveria chegar aqui (frontend bloqueia)
+        if (authError.code === 'email_exists') {
+          logStep('ERRO: Email já cadastrado tentou fazer checkout', { email: payer.email });
+          throw new Error('Email já cadastrado. Faça login para comprar novos produtos.');
+        } else {
+          // Outro erro ao criar usuário
+          logStep('ERRO ao criar usuário', authError);
+          throw new Error(`Erro ao criar usuário: ${authError?.message}`);
+        }
+      } else if (userData?.user) {
+        // Usuário criado com sucesso
+        newUser = userData;
+        authUserId = userData.user.id;
+        logStep('Usuário criado com sucesso', { userId: authUserId });
+      }
+
+      if (!authUserId) {
+        throw new Error('Não foi possível obter ID do usuário');
+      }
     }
 
     // 2. REGISTRAR COMPRA com auth_user_id
@@ -155,9 +153,9 @@ serve(async (req) => {
 
     logStep('Compra registrada com sucesso', { purchaseId: purchase.id });
 
-    // 3. GERAR TOKENS DE AUTENTICAÇÃO (criar sessão)
+    // 3. GERAR TOKENS DE AUTENTICAÇÃO (criar sessão) - apenas para novos usuários
     let authTokens = null;
-    if (newUser?.user) {
+    if (newUser) {
       // Para novo usuário, criar sessão
       logStep('Gerando tokens de autenticação', { userId: authUserId });
       

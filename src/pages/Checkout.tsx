@@ -5,12 +5,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Shield, Clock, Check, Lock, Users, TrendingUp, Sparkles, Star, AlertCircle } from "lucide-react";
+import { Shield, Clock, Check, Lock, Users, TrendingUp, Sparkles, Star, AlertCircle, Loader2, CheckCircle2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { z } from "zod";
 import { formatCPF, validateCPF } from "@/lib/cpf-utils";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { useDebounce } from "@/hooks/use-debounce";
 
 const checkoutSchema = z.object({
   name: z.string().trim().min(3, "Nome deve ter pelo menos 3 caracteres").max(100),
@@ -38,6 +40,10 @@ const Checkout = () => {
   const [currentNotification, setCurrentNotification] = useState({ name: "Maria Silva", city: "São Paulo" });
   const [timeLeft, setTimeLeft] = useState(14 * 60 + 43);
   const [showUpsellModal, setShowUpsellModal] = useState(false);
+  const [emailExists, setEmailExists] = useState(false);
+  const [checkingEmail, setCheckingEmail] = useState(false);
+  
+  const debouncedEmail = useDebounce(formData.email, 800);
 
   const pack1Price = 12.99;
   const pack2Price = 12.99;
@@ -87,6 +93,28 @@ const Checkout = () => {
   useEffect(() => {
     window.scrollTo(0, 0);
   }, []);
+
+  useEffect(() => {
+    if (debouncedEmail && debouncedEmail.includes('@')) {
+      checkEmailStatus(debouncedEmail);
+    }
+  }, [debouncedEmail]);
+
+  const checkEmailStatus = async (email: string) => {
+    setCheckingEmail(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('check-email-status', {
+        body: { email }
+      });
+
+      if (error) throw error;
+      setEmailExists(data?.exists || false);
+    } catch (error) {
+      console.error('Erro ao verificar email:', error);
+    } finally {
+      setCheckingEmail(false);
+    }
+  };
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -286,8 +314,36 @@ const Checkout = () => {
                       className={`h-12 ${errors.email ? "border-destructive" : ""}`}
                       disabled={loading}
                     />
+                    {checkingEmail && (
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                        Verificando email...
+                      </div>
+                    )}
+                    {!checkingEmail && emailExists && (
+                      <Alert className="border-amber-500 bg-amber-500/10 mt-2">
+                        <AlertCircle className="h-4 w-4 text-amber-500" />
+                        <AlertTitle>Email já cadastrado</AlertTitle>
+                        <AlertDescription className="space-y-2">
+                          <p>Já existe uma conta com este email. Por favor, faça login para acessar sua área de membros e comprar novos produtos.</p>
+                          <Button 
+                            variant="link" 
+                            onClick={() => navigate('/login')}
+                            className="p-0 h-auto text-amber-600 font-semibold"
+                          >
+                            → Fazer Login Agora
+                          </Button>
+                        </AlertDescription>
+                      </Alert>
+                    )}
+                    {!checkingEmail && !emailExists && formData.email.includes('@') && (
+                      <div className="flex items-center gap-2 text-sm text-green-600 mt-1">
+                        <CheckCircle2 className="h-3 w-3" />
+                        Email disponível
+                      </div>
+                    )}
                     {errors.email && (
-                      <p className="text-xs md:text-sm text-destructive mt-2 flex items-center gap-1">
+                      <p className="text-xs md:text-sm text-destructive mt-1 flex items-center gap-1">
                         <AlertCircle className="w-3 h-3 flex-shrink-0" />
                         {errors.email}
                       </p>
@@ -378,10 +434,14 @@ const Checkout = () => {
                   <Button
                     type="submit"
                     size="lg"
-                    className="w-full h-14 text-lg font-bold bg-gradient-to-r from-primary to-primary-glow hover:from-primary-glow hover:to-primary shadow-lg transition-all"
-                    disabled={loading}
+                    className="w-full h-14 text-lg font-bold bg-gradient-to-r from-primary to-primary-glow hover:from-primary-glow hover:to-primary shadow-lg transition-all disabled:opacity-50"
+                    disabled={emailExists || loading}
                   >
-                    {loading ? "Processando..." : "Ir para Pagamento Seguro"}
+                    {emailExists 
+                      ? "Faça login para continuar" 
+                      : loading 
+                      ? "Processando..." 
+                      : "Ir para Pagamento Seguro"}
                   </Button>
 
                   {/* Segurança */}

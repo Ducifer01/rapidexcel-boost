@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Download, LogOut, Loader2, Clock, CheckCircle2, XCircle, AlertCircle, FileSpreadsheet, BarChart3 } from "lucide-react";
+import { Download, LogOut, Loader2, Clock, CheckCircle2, XCircle, AlertCircle, FileSpreadsheet, BarChart3, Sparkles, ShoppingCart } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface Purchase {
@@ -22,6 +22,7 @@ const Dashboard = () => {
   const [purchases, setPurchases] = useState<Purchase[]>([]);
   const [userEmail, setUserEmail] = useState("");
   const [downloadingProduct, setDownloadingProduct] = useState<string | null>(null);
+  const [buyingProduct, setBuyingProduct] = useState<string | null>(null);
 
   useEffect(() => {
     checkUser();
@@ -103,6 +104,58 @@ const Dashboard = () => {
     }
   };
 
+  const handleBuyProduct = async (productId: string) => {
+    setBuyingProduct(productId);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        navigate('/login');
+        return;
+      }
+
+      const { data, error } = await supabase.functions.invoke('create-payment', {
+        body: {
+          product_ids: [productId],
+          payer_email: user.email,
+          authenticated_user_id: user.id
+        }
+      });
+
+      if (error) throw error;
+
+      if (data?.init_point) {
+        window.open(data.init_point, '_blank');
+        toast({
+          title: "Redirecionando para pagamento",
+          description: "Você será levado ao MercadoPago para finalizar sua compra.",
+        });
+      }
+    } catch (error) {
+      console.error("Erro ao iniciar compra:", error);
+      toast({
+        title: "Erro ao processar",
+        description: "Tente novamente em alguns instantes.",
+        variant: "destructive",
+      });
+    } finally {
+      setBuyingProduct(null);
+    }
+  };
+
+  const availableProducts = [
+    { id: 'pack_1', name: 'Planilhas 6k Pro - 6.000 Planilhas Excel', price: 12.99 },
+    { id: 'pack_2', name: 'Dashboards+Bônus', price: 12.99 }
+  ];
+
+  const userProducts = purchases
+    .filter(p => p.payment_status === 'approved')
+    .flatMap(p => p.products);
+
+  const missingProducts = availableProducts.filter(
+    product => !userProducts.some(up => up.includes(product.name.split(' - ')[0]))
+  );
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
@@ -135,6 +188,52 @@ const Dashboard = () => {
             Sair
           </Button>
         </div>
+
+        {/* Produtos Disponíveis para Compra */}
+        {missingProducts.length > 0 && (
+          <Card className="border-2 border-primary/30 bg-gradient-to-br from-primary/10 to-transparent backdrop-blur">
+            <CardHeader className="border-b border-primary/20">
+              <CardTitle className="flex items-center gap-2 text-xl">
+                <Sparkles className="w-5 h-5 text-primary" />
+                Produtos Disponíveis para Compra
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-4 md:p-6 space-y-3">
+              {missingProducts.map(product => {
+                const isBuying = buyingProduct === product.id;
+                return (
+                  <div 
+                    key={product.id} 
+                    className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 bg-background/50 rounded-lg border border-primary/20 hover:border-primary/40 transition-colors"
+                  >
+                    <div className="space-y-1">
+                      <h4 className="font-bold text-base">{product.name}</h4>
+                      <p className="text-2xl font-black text-primary">R$ {product.price.toFixed(2)}</p>
+                    </div>
+                    <Button 
+                      onClick={() => handleBuyProduct(product.id)}
+                      disabled={isBuying}
+                      size="lg"
+                      className="w-full sm:w-auto bg-gradient-to-r from-primary to-primary-glow hover:from-primary-glow hover:to-primary"
+                    >
+                      {isBuying ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          Processando...
+                        </>
+                      ) : (
+                        <>
+                          <ShoppingCart className="w-4 h-4 mr-2" />
+                          Comprar Agora
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                );
+              })}
+            </CardContent>
+          </Card>
+        )}
 
         {/* Lista de Compras */}
         {purchases.length === 0 ? (
