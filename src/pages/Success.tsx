@@ -3,11 +3,19 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { CheckCircle, ArrowRight, Info } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
 
 const Success = () => {
   const navigate = useNavigate();
+  const { user, loading } = useAuth();
 
   useEffect(() => {
+    // Redirecionar usuários autenticados para o Dashboard
+    if (!loading && user) {
+      navigate("/dashboard");
+      return;
+    }
+
     // Opcional: enviar evento de conversão para analytics
     if (typeof window !== 'undefined' && (window as any).gtag) {
       (window as any).gtag('event', 'purchase', {
@@ -16,7 +24,15 @@ const Success = () => {
         currency: 'BRL',
       });
     }
-  }, []);
+  }, [user, loading, navigate]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">Carregando...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50 to-emerald-100 dark:from-green-950 dark:to-emerald-950 p-4">
@@ -70,7 +86,7 @@ const Success = () => {
           </div>
 
           <p className="text-xs text-green-700 dark:text-green-400 mt-6">
-            Problemas com o acesso? Entre em contato via Instagram{" "}
+            Problemas com o acesso? Utilize o chat de suporte ou entre em contato via Instagram{" "}
             <a 
               href="https://instagram.com/planilhaexpress_ofc" 
               target="_blank" 

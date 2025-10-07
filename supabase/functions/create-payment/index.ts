@@ -10,6 +10,20 @@ const logStep = (step: string, details?: any) => {
   console.log(`[CREATE-PAYMENT] ${step}`, details ? JSON.stringify(details) : '');
 };
 
+// PRODUTOS VÁLIDOS - Definição centralizada (server-side source of truth)
+const VALID_PRODUCTS = {
+  'pack_1': { 
+    title: 'Planilhas 6k Pro - 6.000 Planilhas Excel', 
+    price: 12.99,
+    description: 'Acesso a 6.000 planilhas editáveis em todas as categorias'
+  },
+  'pack_2': { 
+    title: 'Dashboards+Bônus - 1.000 Dashboards + Bônus', 
+    price: 12.99,
+    description: 'Acesso a 1.000 dashboards profissionais + bônus especial'
+  },
+};
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -19,21 +33,7 @@ serve(async (req) => {
     logStep('Iniciando criação de pagamento');
     
     const { product_ids, payer, back_urls, password, authenticated_user_id } = await req.json();
-    logStep('Dados recebidos', { product_ids, payer_email: payer?.email, authenticated: !!authenticated_user_id });
-
-    // VALIDAÇÃO DE SEGURANÇA: Preços definidos NO SERVIDOR
-    const VALID_PRODUCTS = {
-      'pack_1': { 
-        title: 'Planilhas 6k Pro - 6.000 Planilhas Excel', 
-        price: 12.99,
-        description: 'Acesso a 6.000 planilhas editáveis em todas as categorias'
-      },
-      'pack_2': { 
-        title: 'Dashboards+Bônus - Planner + 50 Dashboards', 
-        price: 12.99,
-        description: 'Planner de Organização Financeira + 50 Dashboards Premium'
-      },
-    };
+    logStep('Dados recebidos', { product_ids, authenticated: !!authenticated_user_id });
 
     // Validar IDs dos produtos
     if (!product_ids || !Array.isArray(product_ids) || product_ids.length === 0) {
@@ -45,14 +45,15 @@ serve(async (req) => {
       throw new Error('Pack 2 só pode ser comprado junto com Pack 1');
     }
 
-    // Validar payer
-    if (!payer?.email || !payer?.name) {
-      throw new Error('Dados do comprador incompletos');
-    }
+    // Validar payer e password APENAS para checkout público (novos usuários)
+    if (!authenticated_user_id) {
+      if (!payer?.email || !payer?.name) {
+        throw new Error('Dados do comprador incompletos');
+      }
 
-    // Validar senha
-    if (!password || password.length < 6) {
-      throw new Error('Senha inválida');
+      if (!password || password.length < 6) {
+        throw new Error('Senha inválida');
+      }
     }
 
     // Construir items com preços SEGUROS do servidor
@@ -87,30 +88,48 @@ serve(async (req) => {
 
     // 1. VERIFICAR/CRIAR USUÁRIO
     let authUserId: string | null = null;
+    let userEmail: string;
+    let userName: string;
     let newUser: any = null;
     
     if (authenticated_user_id) {
       // Usuário já autenticado comprando do Dashboard
       logStep('Compra de usuário autenticado', { userId: authenticated_user_id });
       authUserId = authenticated_user_id;
+      
+      // Buscar dados do usuário
+      const { data: userData, error: userError } = await supabase.auth.admin.getUserById(authenticated_user_id);
+      
+      if (userError || !userData.user) {
+        logStep('ERRO ao buscar usuário', userError);
+        throw new Error('Usuário não encontrado');
+      }
+      
+      userEmail = userData.user.email || '';
+      userName = userData.user.user_metadata?.name || userEmail.split('@')[0];
+      
+      logStep('Dados do usuário carregados', { email: userEmail, name: userName });
     } else {
       // Fluxo de checkout público (novos usuários)
-      logStep('Verificando/Criando usuário', { email: payer.email });
+      userEmail = payer.email;
+      userName = payer.name;
+      
+      logStep('Verificando/Criando usuário', { email: userEmail });
       
       // Tentar criar o usuário diretamente
       const { data: userData, error: authError } = await supabase.auth.admin.createUser({
-        email: payer.email,
+        email: userEmail,
         password: password,
         email_confirm: true,
         user_metadata: {
-          name: payer.name,
+          name: userName,
         }
       });
 
       if (authError) {
         // Se erro é "email_exists", usuário não deveria chegar aqui (frontend bloqueia)
         if (authError.code === 'email_exists') {
-          logStep('ERRO: Email já cadastrado tentou fazer checkout', { email: payer.email });
+          logStep('ERRO: Email já cadastrado tentou fazer checkout', { email: userEmail });
           throw new Error('Email já cadastrado. Faça login para comprar novos produtos.');
         } else {
           // Outro erro ao criar usuário
@@ -131,17 +150,17 @@ serve(async (req) => {
 
     // 2. REGISTRAR COMPRA com auth_user_id
     const totalAmount = items.reduce((sum: number, item: any) => sum + (item.unit_price * item.quantity), 0);
-    logStep('Registrando compra no Supabase', { email: payer.email, userId: authUserId, total: totalAmount });
+    logStep('Registrando compra no Supabase', { email: userEmail, userId: authUserId, total: totalAmount });
 
     const { data: purchase, error: insertError } = await supabase
       .from('purchases')
       .insert({
-        user_email: payer.email,
+        user_email: userEmail,
         products: items.map((item: any) => item.title),
         total_amount: totalAmount,
         payment_status: 'pending',
         payment_id: 'temp', // Temporário (será atualizado pelo webhook)
-        auth_user_id: authUserId, // Usuário já criado
+        auth_user_id: authUserId,
       })
       .select()
       .single();
@@ -160,7 +179,7 @@ serve(async (req) => {
       logStep('Gerando tokens de autenticação', { userId: authUserId });
       
       const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
-        email: payer.email,
+        email: userEmail,
         password: password,
       });
 
@@ -179,9 +198,9 @@ serve(async (req) => {
     const preferenceData = {
       items,
       payer: {
-        name: payer.name,
-        email: payer.email,
-        identification: payer.identification || undefined,
+        name: userName,
+        email: userEmail,
+        identification: payer?.identification || undefined,
       },
       back_urls: back_urls || {
         success: `${req.headers.get('origin')}/success`,

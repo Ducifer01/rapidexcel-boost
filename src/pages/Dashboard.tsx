@@ -4,8 +4,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Download, LogOut, Loader2, Clock, CheckCircle2, XCircle, AlertCircle, FileSpreadsheet, BarChart3, Sparkles, ShoppingCart } from "lucide-react";
+import { Download, LogOut, Loader2, Clock, CheckCircle2, XCircle, AlertCircle, FileSpreadsheet, BarChart3, Sparkles, ShoppingCart, MessageCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { PRODUCTS } from "@/lib/products";
 
 interface Purchase {
   id: string;
@@ -106,6 +107,12 @@ const Dashboard = () => {
 
   const handleBuyProduct = async (productId: string) => {
     setBuyingProduct(productId);
+    
+    toast({
+      title: "Processando...",
+      description: "Preparando seu pagamento no MercadoPago.",
+    });
+
     try {
       const { data: { user } } = await supabase.auth.getUser();
       
@@ -117,7 +124,6 @@ const Dashboard = () => {
       const { data, error } = await supabase.functions.invoke('create-payment', {
         body: {
           product_ids: [productId],
-          payer_email: user.email,
           authenticated_user_id: user.id
         }
       });
@@ -134,8 +140,8 @@ const Dashboard = () => {
     } catch (error) {
       console.error("Erro ao iniciar compra:", error);
       toast({
-        title: "Erro ao processar",
-        description: "Tente novamente em alguns instantes.",
+        title: "Erro ao processar pagamento",
+        description: error instanceof Error ? error.message : "Tente novamente em alguns instantes.",
         variant: "destructive",
       });
     } finally {
@@ -143,16 +149,11 @@ const Dashboard = () => {
     }
   };
 
-  const availableProducts = [
-    { id: 'pack_1', name: 'Planilhas 6k Pro - 6.000 Planilhas Excel', price: 12.99 },
-    { id: 'pack_2', name: 'Dashboards+Bônus', price: 12.99 }
-  ];
-
   const userProducts = purchases
     .filter(p => p.payment_status === 'approved')
     .flatMap(p => p.products);
 
-  const missingProducts = availableProducts.filter(
+  const missingProducts = PRODUCTS.filter(
     product => !userProducts.some(up => up.includes(product.name.split(' - ')[0]))
   );
 
@@ -178,15 +179,35 @@ const Dashboard = () => {
               Olá, <span className="text-primary font-semibold">{userEmail}</span>
             </p>
           </div>
-          <Button
-            onClick={handleLogout}
-            variant="outline"
-            size="sm"
-            className="w-full sm:w-auto h-9 md:h-10 text-sm"
-          >
-            <LogOut className="w-4 h-4 mr-2" />
-            Sair
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              onClick={() => {
+                if ((window as any).Tawk_API && (window as any).Tawk_API.maximize) {
+                  (window as any).Tawk_API.maximize();
+                } else {
+                  toast({
+                    title: "Chat de suporte",
+                    description: "O chat de suporte está sendo carregado...",
+                  });
+                }
+              }}
+              variant="outline"
+              size="sm"
+              className="w-full sm:w-auto h-9 md:h-10 text-sm"
+            >
+              <MessageCircle className="w-4 h-4 mr-2" />
+              Suporte
+            </Button>
+            <Button
+              onClick={handleLogout}
+              variant="outline"
+              size="sm"
+              className="w-full sm:w-auto h-9 md:h-10 text-sm"
+            >
+              <LogOut className="w-4 h-4 mr-2" />
+              Sair
+            </Button>
+          </div>
         </div>
 
         {/* Produtos Disponíveis para Compra */}

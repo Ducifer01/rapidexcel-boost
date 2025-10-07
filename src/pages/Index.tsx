@@ -7,8 +7,32 @@ import Offers from "@/components/Offers";
 import FAQ from "@/components/FAQ";
 import Footer from "@/components/Footer";
 import { Badge } from "@/components/ui/badge";
+import { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
 
 const Index = () => {
+  const [youtubeVideoId, setYoutubeVideoId] = useState("SEU_VIDEO_ID");
+
+  useEffect(() => {
+    const loadYoutubeId = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('site_settings')
+          .select('value')
+          .eq('key', 'youtube_video_id')
+          .single();
+
+        if (!error && data) {
+          setYoutubeVideoId(data.value);
+        }
+      } catch (error) {
+        console.error('Error loading YouTube video ID:', error);
+      }
+    };
+
+    loadYoutubeId();
+  }, []);
+
   return (
     <div className="min-h-screen bg-background">
       <Hero />
@@ -28,7 +52,7 @@ const Index = () => {
             <div className="relative w-full" style={{ paddingBottom: '56.25%' }}>
               <iframe
                 className="absolute top-0 left-0 w-full h-full rounded-xl shadow-2xl"
-                src="https://www.youtube.com/embed/SEU_VIDEO_ID?autoplay=1&mute=1&controls=0&loop=1&playlist=SEU_VIDEO_ID&modestbranding=1&rel=0"
+                src={`https://www.youtube.com/embed/${youtubeVideoId}?autoplay=1&mute=1&controls=0&loop=1&playlist=${youtubeVideoId}&modestbranding=1&rel=0`}
                 title="Demonstração do PlanilhaExpress"
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                 allowFullScreen
