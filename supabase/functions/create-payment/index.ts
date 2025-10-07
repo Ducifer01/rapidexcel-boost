@@ -86,37 +86,49 @@ serve(async (req) => {
     );
 
     // 1. CRIAR USUÁRIO IMEDIATAMENTE (se não existir)
-    logStep('Verificando se usuário existe', { email: payer.email });
+    logStep('Verificando/Criando usuário', { email: payer.email });
     
     let authUserId: string | null = null;
     
-    // Buscar usuário existente por email
-    const { data: existingUsers } = await supabase.auth.admin.listUsers();
-    const existingUser = existingUsers?.users?.find(u => u.email === payer.email);
-    
-    if (existingUser) {
-      authUserId = existingUser.id;
-      logStep('Usuário já existe', { userId: authUserId });
-    } else {
-      // Criar novo usuário
-      logStep('Criando novo usuário', { email: payer.email });
-      
-      const { data: newUser, error: authError } = await supabase.auth.admin.createUser({
-        email: payer.email,
-        password: password,
-        email_confirm: true,
-        user_metadata: {
-          name: payer.name,
-        }
-      });
+    // Tentar criar o usuário diretamente
+    const { data: newUser, error: authError } = await supabase.auth.admin.createUser({
+      email: payer.email,
+      password: password,
+      email_confirm: true,
+      user_metadata: {
+        name: payer.name,
+      }
+    });
 
-      if (authError || !newUser.user) {
+    if (authError) {
+      // Se erro é "email_exists", buscar o usuário existente
+      if (authError.code === 'email_exists') {
+        logStep('Email já existe, buscando usuário', { email: payer.email });
+        
+        // Usar listUsers para buscar o usuário (não há getUserByEmail na API)
+        const { data: existingUsers } = await supabase.auth.admin.listUsers();
+        const existingUser = existingUsers?.users?.find(u => u.email === payer.email);
+        
+        if (existingUser) {
+          authUserId = existingUser.id;
+          logStep('Usuário encontrado', { userId: authUserId });
+        } else {
+          logStep('ERRO: Email existe mas usuário não foi encontrado');
+          throw new Error('Email existe mas usuário não foi encontrado');
+        }
+      } else {
+        // Outro erro ao criar usuário
         logStep('ERRO ao criar usuário', authError);
         throw new Error(`Erro ao criar usuário: ${authError?.message}`);
       }
-
+    } else if (newUser?.user) {
+      // Usuário criado com sucesso
       authUserId = newUser.user.id;
       logStep('Usuário criado com sucesso', { userId: authUserId });
+    }
+
+    if (!authUserId) {
+      throw new Error('Não foi possível obter ID do usuário');
     }
 
     // 2. REGISTRAR COMPRA com auth_user_id
@@ -145,7 +157,7 @@ serve(async (req) => {
 
     // 3. GERAR TOKENS DE AUTENTICAÇÃO (criar sessão)
     let authTokens = null;
-    if (!existingUser) {
+    if (newUser?.user) {
       // Para novo usuário, criar sessão
       logStep('Gerando tokens de autenticação', { userId: authUserId });
       

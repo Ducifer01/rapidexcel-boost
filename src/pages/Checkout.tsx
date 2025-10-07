@@ -19,13 +19,17 @@ const checkoutSchema = z.object({
     message: "CPF inválido",
   }),
   password: z.string().min(6, "Senha deve ter pelo menos 6 caracteres").max(50),
+  confirmPassword: z.string(),
+}).refine((data) => data.password === data.confirmPassword, {
+  message: "As senhas não coincidem",
+  path: ["confirmPassword"],
 });
 
 const Checkout = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  const [formData, setFormData] = useState({ name: '', email: '', cpf: '', password: '' });
+  const [formData, setFormData] = useState({ name: '', email: '', cpf: '', password: '', confirmPassword: '' });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
   const [hasUpsell, setHasUpsell] = useState(false);
@@ -330,6 +334,34 @@ const Checkout = () => {
                       <p className="text-xs md:text-sm text-destructive mt-2 flex items-center gap-1">
                         <AlertCircle className="w-3 h-3 flex-shrink-0" />
                         {errors.password}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Repetir Senha */}
+                  <div>
+                    <Label htmlFor="confirmPassword" className="text-sm md:text-base font-semibold mb-2 block">
+                      Repetir Senha *
+                    </Label>
+                    <Input
+                      id="confirmPassword"
+                      type="password"
+                      placeholder="Digite a senha novamente"
+                      value={formData.confirmPassword}
+                      onChange={(e) => handleInputChange('confirmPassword', e.target.value)}
+                      className={`h-12 ${errors.confirmPassword ? "border-destructive" : formData.confirmPassword && formData.password === formData.confirmPassword ? "border-green-500" : ""}`}
+                      disabled={loading}
+                    />
+                    {errors.confirmPassword && (
+                      <p className="text-xs md:text-sm text-destructive mt-2 flex items-center gap-1">
+                        <AlertCircle className="w-3 h-3 flex-shrink-0" />
+                        {errors.confirmPassword}
+                      </p>
+                    )}
+                    {!errors.confirmPassword && formData.confirmPassword && formData.password === formData.confirmPassword && (
+                      <p className="text-xs md:text-sm text-green-600 mt-2 flex items-center gap-1">
+                        <Check className="w-3 h-3 flex-shrink-0" />
+                        Senhas coincidem
                       </p>
                     )}
                     <div className="mt-3 p-3 bg-primary/10 border border-primary/30 rounded-lg">
