@@ -40,9 +40,40 @@ serve(async (req) => {
       throw new Error('product_ids inválido ou vazio');
     }
 
-    // Validar que Pack 2 nunca vem sozinho
+    // Criar cliente Supabase (movido para cima para usar na validação)
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
+
+    // Validar que Pack 2 não vem sozinho (com exceção para usuários autenticados que já possuem Pack 1)
     if (product_ids.length === 1 && product_ids[0] === 'pack_2') {
-      throw new Error('Pack 2 só pode ser comprado junto com Pack 1');
+      if (authenticated_user_id) {
+        // Usuário autenticado: verificar se já possui pack_1
+        logStep('Verificando acesso ao pack_1 para compra do pack_2', { userId: authenticated_user_id });
+        
+        const { data: hasPack1, error: accessError } = await supabase
+          .rpc('user_has_product_access', {
+            _user_id: authenticated_user_id,
+            _product_name: 'Planilhas 6k Pro - 6.000 Planilhas Excel'
+          });
+        
+        if (accessError) {
+          logStep('ERRO ao verificar acesso ao pack_1', accessError);
+          throw new Error('Erro ao verificar produtos existentes');
+        }
+        
+        if (!hasPack1) {
+          logStep('Usuário não possui pack_1', { userId: authenticated_user_id });
+          throw new Error('Para comprar o Pack de Dashboards, você precisa primeiro adquirir o Pack de 6.000 Planilhas');
+        }
+        
+        logStep('Usuário possui pack_1, permitindo compra do pack_2', { userId: authenticated_user_id });
+      } else {
+        // Checkout público: bloquear completamente
+        logStep('Tentativa de compra do pack_2 sozinho em checkout público');
+        throw new Error('Pack 2 só pode ser comprado junto com Pack 1');
+      }
     }
 
     // Validar payer e password APENAS para checkout público (novos usuários)
@@ -80,11 +111,7 @@ serve(async (req) => {
       throw new Error('MercadoPago Access Token não configurado');
     }
 
-    // Criar cliente Supabase
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    );
+    // Cliente Supabase já foi criado acima para validação
 
     // 1. VERIFICAR/CRIAR USUÁRIO
     let authUserId: string | null = null;
