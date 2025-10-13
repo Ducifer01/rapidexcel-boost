@@ -46,13 +46,13 @@ const Checkout = () => {
   const debouncedEmail = useDebounce(formData.email, 800);
 
   const pack1Price = 12.99;
-  const pack2Price = 12.99;
+  const pack2Price = 29.99;
   const totalPrice = hasUpsell ? pack1Price + pack2Price : pack1Price;
 
-  const pack1Name = "Planilhas 6k Pro";
-  const pack2Name = "Dashboards+Bônus";
-  const pack1OriginalPrice = 197.00;
-  const pack2OriginalPrice = 25.00;
+  const pack1Name = "Pack Excel Completo Pro";
+  const pack2Name = "Pack Office Premium";
+  const pack1OriginalPrice = 1997.00;
+  const pack2OriginalPrice = 3997.00;
 
   const notifications = [
     { name: "Maria Silva", city: "São Paulo" },

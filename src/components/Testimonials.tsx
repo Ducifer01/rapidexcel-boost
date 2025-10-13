@@ -3,27 +3,51 @@ import { Star } from "lucide-react";
 
 const testimonials = [
   {
-    name: "Maria Silva",
-    role: "Empreendedora",
-    content: "Essas planilhas transformaram completamente a gestão do meu negócio. Economizei horas de trabalho e consegui organizar minhas finanças de forma profissional!",
+    name: "Lucas Mendes",
+    role: "Estudante Universitário",
+    content: "Essas planilhas salvaram meu TCC! Tinha tudo que eu precisava para organizar dados e fazer apresentações incríveis. E os templates Word para o trabalho final foram perfeitos!",
     rating: 5
   },
   {
-    name: "João Santos",
-    role: "Analista Financeiro",
-    content: "Qualidade excepcional! Os dashboards são lindos e muito funcionais. Uso diariamente no trabalho e recomendo para todos os colegas.",
+    name: "Marina Costa",
+    role: "Freelancer de Marketing",
+    content: "Como freelancer, preciso entregar propostas profissionais. Os templates Word e slides PowerPoint me economizam horas todo mês. Melhor investimento que já fiz!",
+    rating: 5
+  },
+  {
+    name: "Roberto Silva",
+    role: "Pequeno Empresário",
+    content: "Finalmente consegui organizar as finanças da minha empresa! As planilhas de fluxo de caixa e controle de estoque são exatamente o que eu precisava. Vale cada centavo!",
     rating: 5
   },
   {
     name: "Ana Paula",
     role: "Gestora de RH",
-    content: "Finalmente encontrei planilhas completas para RH. O controle de ponto e os cálculos trabalhistas me economizam dias de trabalho todo mês!",
+    content: "Os modelos de RH são completos demais! Folha de ponto, banco de horas, cálculos trabalhistas... Tudo pronto e fácil de usar. Economizo dias de trabalho todo mês!",
     rating: 5
   },
   {
     name: "Carlos Eduardo",
-    role: "Contador",
-    content: "Como contador, preciso de precisão e praticidade. Essas planilhas entregam ambos. O suporte também é excelente!",
+    role: "Professor Particular",
+    content: "Uso as planilhas para organizar minhas aulas e os slides PowerPoint para apresentações. Meus alunos adoram o material visual. Muito profissional!",
+    rating: 5
+  },
+  {
+    name: "Juliana Santos",
+    role: "Profissional Autônoma",
+    content: "Não sabia para onde estava indo meu dinheiro. Com as planilhas de orçamento pessoal consegui organizar tudo. Agora consigo poupar todo mês!",
+    rating: 5
+  },
+  {
+    name: "Felipe Alves",
+    role: "Engenheiro Civil",
+    content: "As planilhas de construção e orçamento de obras são incríveis! Uso diariamente para calcular materiais e prazos. Ferramenta indispensável!",
+    rating: 5
+  },
+  {
+    name: "Beatriz Lima",
+    role: "Empreendedora Digital",
+    content: "Os templates de propostas comerciais e apresentações me ajudaram a fechar mais contratos. O retorno do investimento foi imediato!",
     rating: 5
   }
 ];
@@ -34,10 +58,13 @@ const Testimonials = () => {
       <div className="container max-w-7xl mx-auto">
         <div className="text-center mb-12 md:mb-16 space-y-4">
           <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold">
-            O Que Nossos Clientes Dizem
+            O Que Nossos{" "}
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-primary-glow">
+              Clientes Dizem
+            </span>
           </h2>
           <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto">
-            Milhares de profissionais já transformaram sua gestão
+            Milhares de estudantes, profissionais e empresários já transformaram seu trabalho
           </p>
         </div>
 
@@ -75,7 +102,10 @@ const Testimonials = () => {
             <span className="text-2xl font-bold">4.9/5.0</span>
           </div>
           <p className="text-muted-foreground">
-            Baseado em mais de 2.500 avaliações verificadas
+            Baseado em mais de 2.847 avaliações verificadas
+          </p>
+          <p className="text-sm text-primary font-semibold">
+            ⚡ Mais de 2.847 pessoas já garantiram acesso hoje!
           </p>
         </div>
       </div>

@@ -45,7 +45,7 @@ const Index = () => {
               Veja Como Funciona
             </h2>
             <p className="text-lg text-center mb-8 text-slate-300">
-              Assista à demonstração real de compra e entrega instantânea dos produtos
+              Assista à demonstração completa: 60.000+ arquivos Office entregues instantaneamente
             </p>
             
             {/* Container do vídeo com aspect ratio 16:9 */}

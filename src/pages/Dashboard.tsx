@@ -154,7 +154,7 @@ const Dashboard = () => {
     .flatMap(p => p.products);
 
   const missingProducts = PRODUCTS.filter(
-    product => !userProducts.some(up => up.includes(product.name.split(' - ')[0]))
+    product => !userProducts.some(up => up.includes(product.name.split(' ')[0]) || up.includes(product.id))
   );
 
   if (loading) {

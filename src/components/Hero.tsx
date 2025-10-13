@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { ShoppingCart, Check, LogIn } from "lucide-react";
+import { ShoppingCart, Check, LogIn, AlertTriangle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 const Hero = () => {
@@ -28,30 +28,40 @@ const Hero = () => {
       
       <div className="container max-w-6xl mx-auto relative z-10">
         <div className="text-center space-y-6 md:space-y-8 animate-fade-in">
-          {/* Badge de destaque */}
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 text-sm font-medium text-primary">
-            <Check className="w-4 h-4" />
-            <span>Acesso Imediato e Vitalício</span>
+          {/* Badge de urgência */}
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-destructive/10 border border-destructive/30 text-sm font-bold text-destructive animate-pulse">
+            <AlertTriangle className="w-4 h-4" />
+            <span>Oferta de Lançamento - 93% OFF</span>
           </div>
 
-          {/* Headline principal */}
+          {/* Headline principal focada em DOR */}
           <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold leading-tight tracking-tight">
-            Otimize sua Gestão e <br className="hidden sm:block" />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-primary-glow">
-              Produtividade
+            ❌ Pare de Perder Tempo <br className="hidden sm:block" />
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-destructive to-orange-500">
+              Criando Arquivos do Zero
             </span>
           </h1>
 
-          {/* Sub-headline */}
+          {/* Sub-headline com solução */}
           <p className="text-lg sm:text-xl md:text-2xl text-muted-foreground max-w-3xl mx-auto leading-relaxed">
-            Tenha Acesso Imediato a <span className="font-bold text-foreground">6.000 Planilhas Excel</span> por Apenas{" "}
-            <span className="font-bold text-secondary">R$ 12,99!</span>
+            ✅ Tenha Acesso IMEDIATO a{" "}
+            <span className="font-bold text-foreground">60.000+ Arquivos Profissionais</span>{" "}
+            por Apenas <span className="font-bold text-primary text-3xl">R$ 12,99!</span>
           </p>
 
-          {/* Descrição adicional */}
-          <p className="text-base sm:text-lg text-muted-foreground max-w-2xl mx-auto">
-            Soluções completas para finanças, administração, RH, logística e muito mais. 
-            <span className="font-semibold text-foreground"> Totalmente editáveis</span> e prontas para usar.
+          {/* Descrição de valor */}
+          <p className="text-base sm:text-lg text-muted-foreground max-w-3xl mx-auto">
+            📊 <span className="font-semibold text-foreground">13.000 Planilhas Excel</span> +{" "}
+            <span className="font-semibold text-foreground">2.000 Templates Word</span> +{" "}
+            <span className="font-semibold text-foreground">50.000 Slides PowerPoint</span>
+            <br />
+            <span className="text-sm mt-2 block">
+              Soluções completas para{" "}
+              <span className="font-semibold text-foreground">
+                estudantes, empreendedores, freelancers, empresários
+              </span>{" "}
+              e muito mais!
+            </span>
           </p>
 
           {/* CTAs */}
@@ -62,7 +72,7 @@ const Hero = () => {
               className="w-full sm:w-auto bg-gradient-to-r from-secondary to-secondary-glow hover:opacity-90 text-base sm:text-lg px-8 py-6 shadow-[0_10px_40px_-10px_hsl(var(--secondary)/0.5)] hover:shadow-[0_15px_50px_-10px_hsl(var(--secondary)/0.6)] transition-all duration-300 transform hover:scale-105"
             >
               <ShoppingCart className="w-5 h-5 mr-2" />
-              Quero Minhas 6.000 Planilhas Agora!
+              Quero Economizar 200+ Horas Agora!
             </Button>
             
             <Button 
@@ -75,7 +85,7 @@ const Hero = () => {
             </Button>
           </div>
 
-          {/* Elementos de confiança */}
+          {/* Elementos de confiança e prova social */}
           <div className="flex flex-wrap justify-center gap-6 pt-8 text-sm text-muted-foreground">
             <div className="flex items-center gap-2">
               <Check className="w-4 h-4 text-primary" />
@@ -88,6 +98,10 @@ const Hero = () => {
             <div className="flex items-center gap-2">
               <Check className="w-4 h-4 text-primary" />
               <span>Acesso Vitalício</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Check className="w-4 h-4 text-primary" />
+              <span>+2.847 Pessoas Já Garantiram</span>
             </div>
           </div>
         </div>

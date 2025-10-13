@@ -16,13 +16,13 @@ const DashboardShowcase = () => {
       <div className="container max-w-7xl mx-auto">
         <div className="text-center mb-12 md:mb-16 space-y-4">
           <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold">
-            Veja a Qualidade das{" "}
+            Veja a Qualidade dos{" "}
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-primary-glow">
-              Nossas Planilhas
+              Nossos Arquivos
             </span>
           </h2>
           <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto">
-            Dashboards profissionais e planilhas editáveis que vão transformar sua gestão
+            Dashboards profissionais, planilhas editáveis, templates Word e slides PowerPoint que vão transformar seu trabalho
           </p>
         </div>
 
@@ -49,9 +49,13 @@ const DashboardShowcase = () => {
           ))}
         </div>
 
-        <div className="text-center mt-12">
-          <p className="text-muted-foreground text-lg">
-            E isso é apenas uma pequena amostra do que você vai receber! 🎉
+        <div className="text-center mt-12 space-y-3">
+          <p className="text-lg md:text-xl text-muted-foreground">
+            E isso é apenas uma <span className="font-bold text-foreground">pequena amostra</span> dos mais de{" "}
+            <span className="font-bold text-primary text-2xl">60.000 arquivos</span> que você vai receber! 🎉
+          </p>
+          <p className="text-sm text-muted-foreground">
+            📊 Planilhas Excel • 📄 Templates Word • 📽️ Slides PowerPoint
           </p>
         </div>
       </div>

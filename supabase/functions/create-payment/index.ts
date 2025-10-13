@@ -13,14 +13,14 @@ const logStep = (step: string, details?: any) => {
 // PRODUTOS VÁLIDOS - Definição centralizada (server-side source of truth)
 const VALID_PRODUCTS = {
   'pack_1': { 
-    title: 'Planilhas 6k Pro - 6.000 Planilhas Excel', 
+    title: 'Pack Excel Completo Pro - 13.000 Planilhas', 
     price: 12.99,
-    description: 'Acesso a 6.000 planilhas editáveis em todas as categorias'
+    description: 'Acesso completo a mais de 13.000 planilhas Excel profissionais + 50 dashboards extras premium'
   },
   'pack_2': { 
-    title: 'Dashboards+Bônus - 1.000 Dashboards + Bônus', 
-    price: 12.99,
-    description: 'Acesso a 1.000 dashboards profissionais + bônus especial'
+    title: 'Pack Office Premium - Templates Word + Slides PowerPoint', 
+    price: 29.99,
+    description: 'Upgrade completo: +2.000 templates Word + 50.000 slides PowerPoint + BÔNUS: 6.000 planilhas Excel extras'
   },
 };
 
@@ -55,7 +55,7 @@ serve(async (req) => {
         const { data: hasPack1, error: accessError } = await supabase
           .rpc('user_has_product_access', {
             _user_id: authenticated_user_id,
-            _product_name: 'Planilhas 6k Pro - 6.000 Planilhas Excel'
+            _product_name: 'Pack Excel Completo Pro - 13.000 Planilhas'
           });
         
         if (accessError) {
@@ -65,7 +65,7 @@ serve(async (req) => {
         
         if (!hasPack1) {
           logStep('Usuário não possui pack_1', { userId: authenticated_user_id });
-          throw new Error('Para comprar o Pack de Dashboards, você precisa primeiro adquirir o Pack de 6.000 Planilhas');
+          throw new Error('Para comprar o Pack Office Premium, você precisa primeiro adquirir o Pack Excel Completo Pro');
         }
         
         logStep('Usuário possui pack_1, permitindo compra do pack_2', { userId: authenticated_user_id });

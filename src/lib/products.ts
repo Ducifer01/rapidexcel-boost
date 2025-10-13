@@ -8,15 +8,15 @@ export interface Product {
 export const PRODUCTS: Product[] = [
   {
     id: 'pack_1',
-    name: 'Planilhas 6k Pro - 6.000 Planilhas Excel',
-    description: 'Acesso a 6.000 planilhas editáveis em todas as categorias',
+    name: 'Pack Excel Completo Pro - 13.000 Planilhas',
+    description: 'Acesso completo a mais de 13.000 planilhas Excel profissionais + 50 dashboards extras premium. Categorias: Finanças, RH, Vendas, Engenharia, Logística, Pessoal e muito mais!',
     price: 12.99,
   },
   {
     id: 'pack_2',
-    name: 'Dashboards+Bônus - 1.000 Dashboards + Bônus',
-    description: 'Acesso a 1.000 dashboards profissionais + bônus especial',
-    price: 12.99,
+    name: 'Pack Office Premium - Templates Word + Slides PowerPoint',
+    description: 'Upgrade completo: +2.000 templates Word profissionais + 50.000 slides PowerPoint para apresentações + BÔNUS: 6.000 planilhas Excel extras + materiais exclusivos',
+    price: 29.99,
   },
 ];
 
