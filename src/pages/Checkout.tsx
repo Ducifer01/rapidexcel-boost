@@ -5,17 +5,14 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { CheckCircle2, CreditCard, QrCode, FileText } from "lucide-react";
+import { CheckCircle2 } from "lucide-react";
 import { PRODUCTS } from "@/lib/products";
 import { toast } from "sonner";
 
-type PaymentMethod = "pix" | "credit" | "boleto";
-
 const Checkout = () => {
   const navigate = useNavigate();
-  const [step, setStep] = useState<1 | 2 | 3>(1);
+  const [step, setStep] = useState<1 | 2>(1);
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
-  const [selectedMethod, setSelectedMethod] = useState<PaymentMethod | null>(null);
   const [amount, setAmount] = useState<number>(0);
   const [preferenceId, setPreferenceId] = useState<string | null>(null);
   const [externalReference, setExternalReference] = useState<string | null>(null);
@@ -51,9 +48,10 @@ const Checkout = () => {
     }
   }, [selectedProductId]);
 
-  // Criar preferência ao selecionar método de pagamento
-  const handleMethodSelect = async (method: PaymentMethod) => {
-    setSelectedMethod(method);
+  // Continuar para o pagamento
+  const handleContinue = async () => {
+    if (!selectedProductId) return;
+
     setLoadingPref(true);
 
     try {
@@ -68,7 +66,7 @@ const Checkout = () => {
       if (data?.preference_id && data?.external_reference) {
         setPreferenceId(data.preference_id);
         setExternalReference(data.external_reference);
-        setStep(3);
+        setStep(2);
       } else {
         throw new Error("Resposta inválida do servidor");
       }
@@ -78,47 +76,6 @@ const Checkout = () => {
     } finally {
       setLoadingPref(false);
     }
-  };
-
-  // Configuração do Brick por método
-  const getCustomization = () => {
-    const baseCustomization = {
-      visual: { style: { theme: "default" as const } },
-    };
-
-    if (selectedMethod === "pix") {
-      return {
-        ...baseCustomization,
-        paymentMethods: {
-          bankTransfer: ["pix"],
-        },
-      };
-    } else if (selectedMethod === "credit") {
-      return {
-        ...baseCustomization,
-        paymentMethods: {
-          creditCard: "all" as const,
-          maxInstallments: 1,
-        },
-      };
-    } else if (selectedMethod === "boleto") {
-      return {
-        ...baseCustomization,
-        paymentMethods: {
-          ticket: "all" as const,
-        },
-      };
-    }
-    
-    return {
-      ...baseCustomization,
-      paymentMethods: {
-        creditCard: "all" as const,
-        bankTransfer: "all" as const,
-        ticket: "all" as const,
-        maxInstallments: 1,
-      },
-    };
   };
 
   const onSubmit = async ({ formData }: any) => {
@@ -149,8 +106,7 @@ const Checkout = () => {
           <h1 className="text-4xl font-bold mb-2">Finalizar Compra</h1>
           <p className="text-muted-foreground">
             {step === 1 && "Escolha seu produto"}
-            {step === 2 && "Escolha a forma de pagamento"}
-            {step === 3 && "Complete seu pagamento"}
+            {step === 2 && "Complete seu pagamento"}
           </p>
         </div>
 
@@ -185,70 +141,16 @@ const Checkout = () => {
             <Button
               size="lg"
               className="w-full"
-              disabled={!selectedProductId}
-              onClick={() => setStep(2)}
+              disabled={!selectedProductId || loadingPref}
+              onClick={handleContinue}
             >
-              Continuar
+              {loadingPref ? "Preparando pagamento..." : "Continuar"}
             </Button>
           </div>
         )}
 
-        {/* Step 2: Seleção de Método */}
+        {/* Step 2: Payment Brick */}
         {step === 2 && (
-          <div className="space-y-4">
-            <Button
-              variant="outline"
-              className="w-full h-auto p-6 justify-start"
-              disabled={loadingPref}
-              onClick={() => handleMethodSelect("pix")}
-            >
-              <QrCode className="w-8 h-8 mr-4" />
-              <div className="text-left">
-                <div className="font-bold text-lg">PIX</div>
-                <div className="text-sm text-muted-foreground">
-                  Aprovação instantânea
-                </div>
-              </div>
-            </Button>
-
-            <Button
-              variant="outline"
-              className="w-full h-auto p-6 justify-start"
-              disabled={loadingPref}
-              onClick={() => handleMethodSelect("credit")}
-            >
-              <CreditCard className="w-8 h-8 mr-4" />
-              <div className="text-left">
-                <div className="font-bold text-lg">Cartão de Crédito</div>
-                <div className="text-sm text-muted-foreground">
-                  Parcelamento em até 1x
-                </div>
-              </div>
-            </Button>
-
-            <Button
-              variant="outline"
-              className="w-full h-auto p-6 justify-start"
-              disabled={loadingPref}
-              onClick={() => handleMethodSelect("boleto")}
-            >
-              <FileText className="w-8 h-8 mr-4" />
-              <div className="text-left">
-                <div className="font-bold text-lg">Boleto Bancário</div>
-                <div className="text-sm text-muted-foreground">
-                  Aprovação em 1-2 dias úteis
-                </div>
-              </div>
-            </Button>
-
-            <Button variant="ghost" className="w-full" onClick={() => setStep(1)}>
-              Voltar
-            </Button>
-          </div>
-        )}
-
-        {/* Step 3: Payment Brick */}
-        {step === 3 && (
           <div className="space-y-6">
             <Card className="p-6">
               <h2 className="text-xl font-bold mb-4">Resumo do Pedido</h2>
@@ -257,10 +159,6 @@ const Checkout = () => {
                 <span className="font-semibold">
                   {PRODUCTS.find((p) => p.id === selectedProductId)?.name}
                 </span>
-              </div>
-              <div className="flex justify-between items-center mb-2">
-                <span>Método:</span>
-                <span className="font-semibold capitalize">{selectedMethod}</span>
               </div>
               <div className="border-t pt-2 mt-2 flex justify-between items-center">
                 <span className="text-lg font-bold">Total:</span>
@@ -271,10 +169,14 @@ const Checkout = () => {
             </Card>
 
             <Card className="p-6">
-              <h2 className="text-xl font-bold mb-4">Dados do Pagamento</h2>
+              <h2 className="text-xl font-bold mb-4">Pagamento</h2>
+              <p className="text-sm text-muted-foreground mb-4">
+                Escolha sua forma de pagamento e preencha os dados
+              </p>
               
               {!brickReady && canRenderBrick && (
                 <div className="space-y-3">
+                  <Skeleton className="h-12 w-full" />
                   <Skeleton className="h-12 w-full" />
                   <Skeleton className="h-12 w-full" />
                   <Skeleton className="h-12 w-full" />
@@ -289,7 +191,21 @@ const Checkout = () => {
                       amount,
                       preferenceId,
                     }}
-                    customization={getCustomization()}
+                    customization={{
+                      paymentMethods: {
+                        creditCard: "all",
+                        debitCard: "all",
+                        ticket: "all",
+                        bankTransfer: "all",
+                        mercadoPago: "all",
+                        maxInstallments: 1,
+                      },
+                      visual: {
+                        style: {
+                          theme: "default",
+                        },
+                      },
+                    }}
                     onSubmit={onSubmit}
                     onReady={() => setBrickReady(true)}
                     onError={(error) => {
@@ -305,10 +221,9 @@ const Checkout = () => {
               variant="ghost"
               className="w-full"
               onClick={() => {
-                setStep(2);
+                setStep(1);
                 setPreferenceId(null);
                 setExternalReference(null);
-                setSelectedMethod(null);
                 setBrickReady(false);
               }}
             >
