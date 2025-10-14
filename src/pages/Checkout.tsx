@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { initMercadoPago, Payment } from '@mercadopago/sdk-react';
+import { initMercadoPago, Payment } from "@mercadopago/sdk-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -17,18 +17,20 @@ import { z } from "zod";
 
 // Inicializar Mercado Pago
 const MP_PUBLIC_KEY = "APP_USR-55b50b66-c849-4bb4-9ea7-88bc3f3db1d0";
-initMercadoPago(MP_PUBLIC_KEY, { locale: 'pt-BR' });
+initMercadoPago(MP_PUBLIC_KEY, { locale: "pt-BR" });
 
-const checkoutSchema = z.object({
-  name: z.string().min(3, "Nome deve ter pelo menos 3 caracteres"),
-  email: z.string().email("Email inválido"),
-  cpf: z.string().min(14, "CPF inválido"),
-  password: z.string().min(6, "Senha deve ter no mínimo 6 caracteres"),
-  confirmPassword: z.string().min(6, "Confirmação de senha obrigatória"),
-}).refine((data) => data.password === data.confirmPassword, {
-  message: "As senhas não coincidem",
-  path: ["confirmPassword"],
-});
+const checkoutSchema = z
+  .object({
+    name: z.string().min(3, "Nome deve ter pelo menos 3 caracteres"),
+    email: z.string().email("Email inválido"),
+    cpf: z.string().min(14, "CPF inválido"),
+    password: z.string().min(6, "Senha deve ter no mínimo 6 caracteres"),
+    confirmPassword: z.string().min(6, "Confirmação de senha obrigatória"),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: "As senhas não coincidem",
+    path: ["confirmPassword"],
+  });
 
 type CheckoutForm = z.infer<typeof checkoutSchema>;
 
@@ -50,10 +52,10 @@ const Checkout = () => {
   const [checkingEmail, setCheckingEmail] = useState(false);
 
   // Product selection
-  const [selectedOption, setSelectedOption] = useState<'pack_1' | 'both'>('both');
-  const selectedProducts = selectedOption === 'both' ? ['pack_1', 'pack_2'] : ['pack_1'];
+  const [selectedOption, setSelectedOption] = useState<"pack_1" | "both">("both");
+  const selectedProducts = selectedOption === "both" ? ["pack_1", "pack_2"] : ["pack_1"];
   const totalAmount = selectedProducts.reduce((sum, id) => {
-    const product = PRODUCTS.find(p => p.id === id);
+    const product = PRODUCTS.find((p) => p.id === id);
     return sum + (product?.price || 0);
   }, 0);
 
@@ -76,7 +78,7 @@ const Checkout = () => {
   // Timer countdown
   useEffect(() => {
     const timer = setInterval(() => {
-      setTimeLeft(prev => (prev > 0 ? prev - 1 : 0));
+      setTimeLeft((prev) => (prev > 0 ? prev - 1 : 0));
     }, 1000);
     return () => clearInterval(timer);
   }, []);
@@ -84,7 +86,7 @@ const Checkout = () => {
   // View counter animation
   useEffect(() => {
     const interval = setInterval(() => {
-      setViewCount(prev => prev + Math.floor(Math.random() * 3) - 1);
+      setViewCount((prev) => prev + Math.floor(Math.random() * 3) - 1);
     }, 5000);
     return () => clearInterval(interval);
   }, []);
@@ -92,7 +94,7 @@ const Checkout = () => {
   // Buyers count animation
   useEffect(() => {
     const interval = setInterval(() => {
-      setBuyersCount(prev => prev + 1);
+      setBuyersCount((prev) => prev + 1);
     }, 30000);
     return () => clearInterval(interval);
   }, []);
@@ -100,41 +102,41 @@ const Checkout = () => {
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
-    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
   };
 
   const handleInputChange = (field: keyof CheckoutForm, value: string) => {
-    if (field === 'cpf') {
+    if (field === "cpf") {
       value = formatCPF(value);
     }
-    setFormData(prev => ({ ...prev, [field]: value }));
+    setFormData((prev) => ({ ...prev, [field]: value }));
     if (errors[field]) {
-      setErrors(prev => ({ ...prev, [field]: undefined }));
+      setErrors((prev) => ({ ...prev, [field]: undefined }));
     }
   };
 
   // Check if email exists
   useEffect(() => {
     const checkEmail = async () => {
-      if (!formData.email || !formData.email.includes('@')) return;
-      
+      if (!formData.email || !formData.email.includes("@")) return;
+
       setCheckingEmail(true);
       try {
-        const { data, error } = await supabase.functions.invoke('check-email-status', {
-          body: { email: formData.email }
+        const { data, error } = await supabase.functions.invoke("check-email-status", {
+          body: { email: formData.email },
         });
-        
+
         if (!error && data) {
           setEmailExists(data.exists);
           if (data.exists) {
-            setErrors(prev => ({ 
-              ...prev, 
-              email: "Email já cadastrado. Faça login para comprar." 
+            setErrors((prev) => ({
+              ...prev,
+              email: "Email já cadastrado. Faça login para comprar.",
             }));
           }
         }
       } catch (error) {
-        console.error('Erro ao verificar email:', error);
+        console.error("Erro ao verificar email:", error);
       } finally {
         setCheckingEmail(false);
       }
@@ -146,13 +148,13 @@ const Checkout = () => {
 
   const onSubmit = async (paymentFormData: any) => {
     setLoading(true);
-    
+
     try {
       // Validar formulário
       const validation = checkoutSchema.safeParse(formData);
       if (!validation.success) {
         const newErrors: Partial<Record<keyof CheckoutForm, string>> = {};
-        validation.error.errors.forEach(err => {
+        validation.error.errors.forEach((err) => {
           if (err.path[0]) {
             newErrors[err.path[0] as keyof CheckoutForm] = err.message;
           }
@@ -178,7 +180,7 @@ const Checkout = () => {
       }
 
       // Processar pagamento
-      const { data, error } = await supabase.functions.invoke('process-payment', {
+      const { data, error } = await supabase.functions.invoke("process-payment", {
         body: {
           formData: paymentFormData,
           userData: {
@@ -189,36 +191,36 @@ const Checkout = () => {
             confirmPassword: formData.confirmPassword,
           },
           selectedProducts,
-        }
+        },
       });
 
       if (error) throw error;
 
       if (!data.success) {
-        throw new Error(data.error || 'Erro ao processar pagamento');
+        throw new Error(data.error || "Erro ao processar pagamento");
       }
 
       // Salvar tokens de autenticação
       if (data.auth_tokens) {
-        localStorage.setItem('sb-auth-token', JSON.stringify(data.auth_tokens));
+        localStorage.setItem("sb-auth-token", JSON.stringify(data.auth_tokens));
       }
 
       // Redirecionar baseado no status do pagamento
       const payment = data.payment;
-      
-      if (payment.status === 'approved') {
+
+      if (payment.status === "approved") {
         toast({
           title: "Pagamento aprovado!",
           description: "Redirecionando para área de membros...",
         });
-        setTimeout(() => navigate('/success'), 1000);
-      } else if (payment.status === 'pending') {
+        setTimeout(() => navigate("/success"), 1000);
+      } else if (payment.status === "pending") {
         toast({
           title: "Pagamento pendente",
           description: "Aguardando confirmação do pagamento...",
         });
-        setTimeout(() => navigate('/pending'), 1000);
-      } else if (payment.status === 'rejected') {
+        setTimeout(() => navigate("/pending"), 1000);
+      } else if (payment.status === "rejected") {
         toast({
           title: "Pagamento recusado",
           description: payment.status_detail || "Tente outro método de pagamento.",
@@ -229,11 +231,10 @@ const Checkout = () => {
           title: "Processando pagamento",
           description: "Aguarde a confirmação...",
         });
-        setTimeout(() => navigate('/pending'), 2000);
+        setTimeout(() => navigate("/pending"), 2000);
       }
-
     } catch (error: any) {
-      console.error('Erro no checkout:', error);
+      console.error("Erro no checkout:", error);
       toast({
         title: "Erro no pagamento",
         description: error.message || "Tente novamente ou entre em contato com o suporte.",
@@ -245,7 +246,7 @@ const Checkout = () => {
   };
 
   const onError = (error: any) => {
-    console.error('Payment Brick error:', error);
+    console.error("Payment Brick error:", error);
     toast({
       title: "Erro no pagamento",
       description: "Verifique os dados e tente novamente.",
@@ -273,10 +274,8 @@ const Checkout = () => {
 
       <div className="container mx-auto px-4 py-8">
         <div className="grid lg:grid-cols-3 gap-6 max-w-7xl mx-auto">
-          
           {/* Main Content - Form + Payment */}
           <div className="lg:col-span-2 space-y-6">
-            
             {/* View Counter */}
             <Card className="border-primary/20 bg-gradient-to-r from-primary/5 to-transparent">
               <CardContent className="p-4">
@@ -287,9 +286,7 @@ const Checkout = () => {
                       <span className="font-bold text-primary">{viewCount}</span> pessoas visualizando agora
                     </span>
                   </div>
-                  <Badge className="bg-gradient-to-r from-primary to-primary-glow">
-                    93% OFF
-                  </Badge>
+                  <Badge className="bg-gradient-to-r from-primary to-primary-glow">93% OFF</Badge>
                 </div>
               </CardContent>
             </Card>
@@ -307,32 +304,38 @@ const Checkout = () => {
                 <RadioGroup value={selectedOption} onValueChange={(value: any) => setSelectedOption(value)}>
                   <div className="space-y-4">
                     {/* Pack 1 Only */}
-                    <label className={`flex items-start space-x-3 p-4 rounded-lg border-2 cursor-pointer transition-all ${
-                      selectedOption === 'pack_1' ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50'
-                    }`}>
+                    <label
+                      className={`flex items-start space-x-3 p-4 rounded-lg border-2 cursor-pointer transition-all ${
+                        selectedOption === "pack_1"
+                          ? "border-primary bg-primary/5"
+                          : "border-border hover:border-primary/50"
+                      }`}
+                    >
                       <RadioGroupItem value="pack_1" id="pack_1" />
                       <div className="flex-1">
                         <div className="flex items-center justify-between mb-2">
                           <h3 className="font-semibold">Pack Excel Completo Pro</h3>
                           <span className="text-2xl font-bold text-primary">R$ 12,99</span>
                         </div>
-                        <p className="text-sm text-muted-foreground">
-                          13.000 planilhas Excel + 50 dashboards premium
-                        </p>
+                        <p className="text-sm text-muted-foreground">13.000 planilhas Excel + 50 dashboards premium</p>
                       </div>
                     </label>
 
                     {/* Both Packs - RECOMMENDED */}
-                    <label className={`flex items-start space-x-3 p-4 rounded-lg border-2 cursor-pointer transition-all relative ${
-                      selectedOption === 'both' ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50'
-                    }`}>
+                    <label
+                      className={`flex items-start space-x-3 p-4 rounded-lg border-2 cursor-pointer transition-all relative ${
+                        selectedOption === "both"
+                          ? "border-primary bg-primary/5"
+                          : "border-border hover:border-primary/50"
+                      }`}
+                    >
                       <Badge className="absolute -top-3 -right-3 bg-gradient-to-r from-primary to-primary-glow">
                         RECOMENDADO
                       </Badge>
                       <RadioGroupItem value="both" id="both" />
                       <div className="flex-1">
                         <div className="flex items-center justify-between mb-2">
-                          <h3 className="font-semibold">Pack Completo (1 + 2)</h3>
+                          <h3 className="font-semibold">Pack Premium</h3>
                           <div className="text-right">
                             <span className="text-2xl font-bold text-primary">R$ 42,97</span>
                             <p className="text-xs text-muted-foreground line-through">R$ 1.997</p>
@@ -376,7 +379,7 @@ const Checkout = () => {
                     id="name"
                     placeholder="Seu nome completo"
                     value={formData.name}
-                    onChange={(e) => handleInputChange('name', e.target.value)}
+                    onChange={(e) => handleInputChange("name", e.target.value)}
                     disabled={loading}
                   />
                   {errors.name && <p className="text-sm text-destructive">{errors.name}</p>}
@@ -389,7 +392,7 @@ const Checkout = () => {
                     type="email"
                     placeholder="seu@email.com"
                     value={formData.email}
-                    onChange={(e) => handleInputChange('email', e.target.value)}
+                    onChange={(e) => handleInputChange("email", e.target.value)}
                     disabled={loading}
                   />
                   {checkingEmail && <p className="text-sm text-muted-foreground">Verificando email...</p>}
@@ -402,7 +405,7 @@ const Checkout = () => {
                     id="cpf"
                     placeholder="000.000.000-00"
                     value={formData.cpf}
-                    onChange={(e) => handleInputChange('cpf', e.target.value)}
+                    onChange={(e) => handleInputChange("cpf", e.target.value)}
                     maxLength={14}
                     disabled={loading}
                   />
@@ -417,7 +420,7 @@ const Checkout = () => {
                       type="password"
                       placeholder="Mínimo 6 caracteres"
                       value={formData.password}
-                      onChange={(e) => handleInputChange('password', e.target.value)}
+                      onChange={(e) => handleInputChange("password", e.target.value)}
                       disabled={loading}
                     />
                     {errors.password && <p className="text-sm text-destructive">{errors.password}</p>}
@@ -430,7 +433,7 @@ const Checkout = () => {
                       type="password"
                       placeholder="Repita a senha"
                       value={formData.confirmPassword}
-                      onChange={(e) => handleInputChange('confirmPassword', e.target.value)}
+                      onChange={(e) => handleInputChange("confirmPassword", e.target.value)}
                       disabled={loading}
                     />
                     {errors.confirmPassword && <p className="text-sm text-destructive">{errors.confirmPassword}</p>}
@@ -460,19 +463,19 @@ const Checkout = () => {
                     initialization={{
                       amount: totalAmount,
                       payer: {
-                        email: formData.email || '',
+                        email: formData.email || "",
                       },
                     }}
                     customization={{
                       paymentMethods: {
-                        bankTransfer: ['pix'],
-                        creditCard: 'all',
-                        debitCard: 'all',
+                        bankTransfer: ["pix"],
+                        creditCard: "all",
+                        debitCard: "all",
                         maxInstallments: 2,
                       },
                       visual: {
                         style: {
-                          theme: 'default',
+                          theme: "default",
                         },
                       },
                     }}
@@ -482,21 +485,19 @@ const Checkout = () => {
                 )}
               </CardContent>
             </Card>
-
           </div>
 
           {/* Sidebar - Order Summary */}
           <div className="lg:col-span-1">
             <div className="sticky top-24 space-y-4">
-              
               {/* Order Summary */}
               <Card className="border-primary/20">
                 <CardHeader className="bg-gradient-to-r from-primary/10 to-transparent">
                   <CardTitle>Resumo do Pedido</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4 pt-6">
-                  {selectedProducts.map(productId => {
-                    const product = PRODUCTS.find(p => p.id === productId);
+                  {selectedProducts.map((productId) => {
+                    const product = PRODUCTS.find((p) => p.id === productId);
                     return (
                       <div key={productId} className="flex justify-between items-start">
                         <div className="flex-1">
@@ -506,20 +507,20 @@ const Checkout = () => {
                       </div>
                     );
                   })}
-                  
+
                   <Separator />
-                  
+
                   <div className="flex justify-between items-center">
                     <span className="text-lg font-bold">TOTAL:</span>
                     <div className="text-right">
                       <p className="text-2xl font-bold text-primary">R$ {totalAmount.toFixed(2)}</p>
-                      {selectedOption === 'both' && (
+                      {selectedOption === "both" && (
                         <p className="text-xs text-muted-foreground line-through">R$ 1.997</p>
                       )}
                     </div>
                   </div>
 
-                  {selectedOption === 'both' && (
+                  {selectedOption === "both" && (
                     <div className="bg-primary/10 p-3 rounded-lg space-y-2">
                       <p className="font-semibold text-sm flex items-center gap-2">
                         <Gift className="w-4 h-4" />
@@ -543,8 +544,7 @@ const Checkout = () => {
                     <h3 className="font-bold">Garantia Incondicional</h3>
                   </div>
                   <p className="text-sm text-muted-foreground">
-                    7 dias para testar. Se não gostar, devolvemos 100% do seu dinheiro. 
-                    Sem perguntas, sem burocracia.
+                    7 dias para testar. Se não gostar, devolvemos 100% do seu dinheiro. Sem perguntas, sem burocracia.
                   </p>
                 </CardContent>
               </Card>
@@ -559,9 +559,9 @@ const Checkout = () => {
                     </div>
                     <span className="font-bold text-primary">{buyersCount.toLocaleString()}</span>
                   </div>
-                  
+
                   <div className="flex items-center gap-1">
-                    {[1,2,3,4,5].map(i => (
+                    {[1, 2, 3, 4, 5].map((i) => (
                       <Star key={i} className="w-4 h-4 fill-primary text-primary" />
                     ))}
                     <span className="ml-2 text-sm font-semibold">4.9/5.0</span>
@@ -573,7 +573,9 @@ const Checkout = () => {
                     {miniTestimonials.slice(0, 2).map((testimonial, idx) => (
                       <div key={idx} className="text-xs">
                         <p className="italic text-muted-foreground">"{testimonial.text}"</p>
-                        <p className="font-semibold mt-1">- {testimonial.name}, {testimonial.role}</p>
+                        <p className="font-semibold mt-1">
+                          - {testimonial.name}, {testimonial.role}
+                        </p>
                       </div>
                     ))}
                   </div>
@@ -587,15 +589,11 @@ const Checkout = () => {
                     <Lock className="w-4 h-4 text-primary" />
                     <span className="font-semibold">Pagamento 100% Seguro</span>
                   </div>
-                  <p className="text-xs text-muted-foreground">
-                    SSL 256-bit | Dados Protegidos | Mercado Pago
-                  </p>
+                  <p className="text-xs text-muted-foreground">SSL 256-bit | Dados Protegidos | Mercado Pago</p>
                 </CardContent>
               </Card>
-
             </div>
           </div>
-
         </div>
       </div>
     </div>
