@@ -4,20 +4,20 @@ import { useNavigate } from "react-router-dom";
 
 const Hero = () => {
   const navigate = useNavigate();
-  
+
   const scrollToOffer = () => {
-    document.getElementById('ofertas')?.scrollIntoView({ behavior: 'smooth' });
+    document.getElementById("ofertas")?.scrollIntoView({ behavior: "smooth" });
   };
 
   return (
     <section className="relative min-h-[85vh] flex items-center justify-center px-4 py-12 md:py-20 bg-gradient-to-b from-primary/5 to-background overflow-hidden">
       {/* Elementos decorativos de fundo */}
       <div className="absolute inset-0 bg-grid-pattern opacity-[0.02]" />
-      
+
       {/* Botão de Área de Membros no canto superior direito */}
       <div className="absolute top-4 right-4 z-20">
         <Button
-          onClick={() => navigate('/login')}
+          onClick={() => navigate("/login")}
           variant="outline"
           className="border-primary/30 hover:bg-primary/10 hover:border-primary/50"
         >
@@ -25,7 +25,7 @@ const Hero = () => {
           Área de Membros
         </Button>
       </div>
-      
+
       <div className="container max-w-6xl mx-auto relative z-10">
         <div className="text-center space-y-6 md:space-y-8 animate-fade-in">
           {/* Badge de urgência */}
@@ -44,8 +44,7 @@ const Hero = () => {
 
           {/* Sub-headline com solução */}
           <p className="text-lg sm:text-xl md:text-2xl text-muted-foreground max-w-3xl mx-auto leading-relaxed">
-            ✅ Tenha Acesso IMEDIATO a{" "}
-            <span className="font-bold text-foreground">60.000+ Arquivos Profissionais</span>{" "}
+            ✅ Tenha Acesso IMEDIATO a <span className="font-bold text-foreground">60.000+ Arquivos Profissionais</span>{" "}
             por Apenas <span className="font-bold text-primary text-3xl">R$ 12,99!</span>
           </p>
 
@@ -66,17 +65,17 @@ const Hero = () => {
 
           {/* CTAs */}
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center pt-4">
-            <Button 
-              size="lg" 
+            <Button
+              size="lg"
               onClick={scrollToOffer}
               className="w-full sm:w-auto bg-gradient-to-r from-secondary to-secondary-glow hover:opacity-90 text-base sm:text-lg px-8 py-6 shadow-[0_10px_40px_-10px_hsl(var(--secondary)/0.5)] hover:shadow-[0_15px_50px_-10px_hsl(var(--secondary)/0.6)] transition-all duration-300 transform hover:scale-105"
             >
               <ShoppingCart className="w-5 h-5 mr-2" />
-              Quero Economizar 200+ Horas Agora!
+              Economizar 200+ Horas Agora!
             </Button>
-            
-            <Button 
-              size="lg" 
+
+            <Button
+              size="lg"
               variant="outline"
               onClick={scrollToOffer}
               className="w-full sm:w-auto text-base sm:text-lg px-8 py-6 border-2 hover:bg-primary/5"
