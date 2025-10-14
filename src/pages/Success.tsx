@@ -5,11 +5,13 @@ import { Button } from "@/components/ui/button";
 import { CheckCircle2, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useFacebookPixel } from "@/hooks/useFacebookPixel";
 
 const Success = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [loggingIn, setLoggingIn] = useState(false);
+  const { trackEvent } = useFacebookPixel();
 
   useEffect(() => {
     const handleAutoLogin = async () => {
@@ -41,11 +43,35 @@ const Success = () => {
           }
         }
 
+        // Recuperar dados da compra do localStorage
+        const purchaseData = localStorage.getItem('checkout_purchase_data');
+        let totalValue = 12.99;
+        let productIds = ['pack_1'];
+        
+        if (purchaseData) {
+          const parsedData = JSON.parse(purchaseData);
+          totalValue = parsedData.total || 12.99;
+          productIds = parsedData.products || ['pack_1'];
+          localStorage.removeItem('checkout_purchase_data');
+        }
+
+        // Facebook Pixel: Purchase (conversão finalizada)
+        trackEvent('Purchase', {
+          content_ids: productIds,
+          content_name: 'Pack Office Purchase',
+          content_type: 'product',
+          value: totalValue,
+          currency: 'BRL',
+          num_items: productIds.length,
+          transaction_id: new Date().getTime().toString(),
+          predicted_ltv: totalValue * 3
+        });
+
         // Enviar evento de conversão para o Google Analytics se disponível
         if (typeof window !== 'undefined' && (window as any).gtag) {
           (window as any).gtag('event', 'purchase', {
             transaction_id: new Date().getTime().toString(),
-            value: 12.99,
+            value: totalValue,
             currency: 'BRL',
           });
         }

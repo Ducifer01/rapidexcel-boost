@@ -3,6 +3,8 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Sparkles, TrendingUp, CheckCircle, X } from 'lucide-react';
 import { getProductById } from '@/lib/products';
+import { useFacebookPixel } from '@/hooks/useFacebookPixel';
+import { useEffect } from 'react';
 
 interface UpsellModalProps {
   open: boolean;
@@ -13,6 +15,19 @@ interface UpsellModalProps {
 
 export const UpsellModal = ({ open, onClose, onAccept, onDecline }: UpsellModalProps) => {
   const pack2 = getProductById('pack_2');
+  const { trackCustomEvent } = useFacebookPixel();
+
+  // Facebook Pixel: Evento customizado quando modal de upsell é exibido
+  useEffect(() => {
+    if (open && pack2) {
+      trackCustomEvent('CustomizeProduct', {
+        content_name: 'Upsell Modal - Pack 2',
+        content_category: 'Upsell',
+        value: pack2.price,
+        currency: 'BRL'
+      });
+    }
+  }, [open]);
 
   if (!pack2) return null;
 

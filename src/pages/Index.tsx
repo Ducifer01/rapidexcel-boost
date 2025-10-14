@@ -9,9 +9,11 @@ import Footer from "@/components/Footer";
 import { Badge } from "@/components/ui/badge";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useFacebookPixel } from "@/hooks/useFacebookPixel";
 
 const Index = () => {
   const [youtubeVideoId, setYoutubeVideoId] = useState("SEU_VIDEO_ID");
+  const { trackEvent } = useFacebookPixel();
 
   useEffect(() => {
     const loadYoutubeId = async () => {
@@ -31,6 +33,16 @@ const Index = () => {
     };
 
     loadYoutubeId();
+
+    // Facebook Pixel: ViewContent na landing page
+    trackEvent('ViewContent', {
+      content_name: 'Landing Page - Pack Office',
+      content_category: 'Landing Page',
+      content_ids: ['pack_1', 'pack_2'],
+      content_type: 'product',
+      value: 12.99,
+      currency: 'BRL'
+    });
   }, []);
 
   return (

@@ -15,11 +15,13 @@ import { MiniTestimonials } from '@/components/checkout/MiniTestimonials';
 import { UpsellModal } from '@/components/checkout/UpsellModal';
 import { formatCPF, validateCPF } from '@/lib/cpf-utils';
 import { ArrowLeft, ArrowRight, Check, Loader2, Sparkles, TrendingUp, Info } from 'lucide-react';
+import { useFacebookPixel } from '@/hooks/useFacebookPixel';
 
 const Checkout = () => {
   const navigate = useNavigate();
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
+  const { trackEvent } = useFacebookPixel();
   
   // Step 1: Seleção de produtos
   const [selectedProducts, setSelectedProducts] = useState<string[]>(['pack_1']);
@@ -37,9 +39,34 @@ const Checkout = () => {
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [showUpsellModal, setShowUpsellModal] = useState(false);
 
+  // Facebook Pixel: ViewContent na página de checkout
+  useEffect(() => {
+    trackEvent('ViewContent', {
+      content_name: 'Checkout Page',
+      content_category: 'Checkout',
+      content_ids: selectedProducts,
+      content_type: 'product',
+      value: calculateTotal(),
+      currency: 'BRL',
+      num_items: selectedProducts.length
+    });
+  }, []);
+
   useEffect(() => {
     if (includeUpsell && !selectedProducts.includes('pack_2')) {
       setSelectedProducts(['pack_1', 'pack_2']);
+      
+      // Facebook Pixel: AddToCart quando adiciona Pack 2
+      const pack2 = getProductById('pack_2');
+      if (pack2) {
+        trackEvent('AddToCart', {
+          content_ids: ['pack_2'],
+          content_name: pack2.name,
+          content_type: 'product',
+          value: pack2.price,
+          currency: 'BRL'
+        });
+      }
     } else if (!includeUpsell && selectedProducts.includes('pack_2')) {
       setSelectedProducts(['pack_1']);
     }
@@ -92,6 +119,22 @@ const Checkout = () => {
   };
 
   const handleContinueToForm = () => {
+    // Facebook Pixel: InitiateCheckout quando usuário avança para dados de pagamento
+    trackEvent('InitiateCheckout', {
+      content_ids: selectedProducts,
+      contents: selectedProducts.map(id => {
+        const product = getProductById(id);
+        return {
+          id: id,
+          quantity: 1,
+          item_price: product?.price
+        };
+      }),
+      value: calculateTotal(),
+      currency: 'BRL',
+      num_items: selectedProducts.length
+    });
+
     // Se Pack 2 não estiver selecionado, mostrar modal de upsell
     if (!includeUpsell) {
       setShowUpsellModal(true);
@@ -116,6 +159,13 @@ const Checkout = () => {
       toast.error('Por favor, corrija os erros no formulário');
       return;
     }
+
+    // Facebook Pixel: AddPaymentInfo quando formulário é validado
+    trackEvent('AddPaymentInfo', {
+      content_ids: selectedProducts,
+      value: calculateTotal(),
+      currency: 'BRL'
+    });
 
     setLoading(true);
 
@@ -151,6 +201,12 @@ const Checkout = () => {
       if (data?.auth_tokens) {
         localStorage.setItem('pending_auth_tokens', JSON.stringify(data.auth_tokens));
       }
+
+      // Salvar dados da compra para o evento Purchase do Facebook Pixel
+      localStorage.setItem('checkout_purchase_data', JSON.stringify({
+        total: calculateTotal(),
+        products: selectedProducts
+      }));
 
       if (data?.init_point) {
         window.location.href = data.init_point;
