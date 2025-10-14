@@ -40,10 +40,10 @@ export const CountdownTimer = () => {
   const seconds = timeLeft % 60;
 
   return (
-    <div className="flex items-center gap-2 bg-destructive/10 text-destructive px-4 py-2 rounded-lg border border-destructive/20">
-      <Clock className="h-5 w-5 animate-pulse" />
-      <span className="font-semibold">
-        Oferta expira em: {String(minutes).padStart(2, '0')}:{String(seconds).padStart(2, '0')}
+    <div className="flex items-center justify-center gap-2 bg-destructive/10 text-destructive px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg border border-destructive/20">
+      <Clock className="h-4 w-4 sm:h-5 sm:w-5 animate-pulse flex-shrink-0" />
+      <span className="font-semibold text-xs sm:text-sm whitespace-nowrap">
+        Oferta expira: {String(minutes).padStart(2, '0')}:{String(seconds).padStart(2, '0')}
       </span>
     </div>
   );
