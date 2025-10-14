@@ -465,7 +465,7 @@ const Checkout = () => {
                       </div>
 
                       <div className="space-y-2">
-                        <Label htmlFor="phone" className="text-sm sm:text-base">Telefone *</Label>
+                        <Label htmlFor="phone" className="text-sm sm:text-base">Whatsapp *</Label>
                         <Input
                           id="phone"
                           value={formData.phone}
