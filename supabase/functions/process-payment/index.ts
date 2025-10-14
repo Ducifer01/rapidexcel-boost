@@ -56,11 +56,6 @@ serve(async (req) => {
       throw new Error('Senha deve ter no mínimo 6 caracteres');
     }
 
-    // Validar senha repetida
-    if (userData.password !== userData.confirmPassword) {
-      throw new Error('As senhas não coincidem');
-    }
-
     // Calcular valor total com base nos produtos selecionados
     const totalAmount = selectedProducts.reduce((sum: number, productId: string) => {
       const product = VALID_PRODUCTS[productId as keyof typeof VALID_PRODUCTS];
@@ -137,9 +132,25 @@ serve(async (req) => {
       },
     };
 
+    // Validar método de pagamento (apenas PIX e Cartão de Crédito)
+    const allowedMethods = ['pix', 'credit_card'];
+    const paymentMethodId = formData.payment_method_id;
+    
+    if (!allowedMethods.includes(paymentMethodId)) {
+      logStep('Método de pagamento não permitido', { method: paymentMethodId });
+      throw new Error('Método de pagamento não aceito. Use PIX ou Cartão de Crédito.');
+    }
+
+    // Validar parcelamento máximo (2x)
+    if (formData.installments && formData.installments > 2) {
+      logStep('Parcelamento excede o máximo', { installments: formData.installments });
+      throw new Error('Parcelamento máximo: 2x sem juros');
+    }
+
     logStep('Enviando pagamento para Mercado Pago', { 
       amount: totalAmount,
-      method: formData.payment_method_id 
+      method: paymentMethodId,
+      installments: formData.installments || 1
     });
 
     const mpResponse = await fetch('https://api.mercadopago.com/v1/payments', {
