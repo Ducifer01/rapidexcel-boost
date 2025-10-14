@@ -95,23 +95,6 @@ const Offers = () => {
           {/* Pack 1 - Excel Completo Pro */}
           <Card className="border-4 border-green-500 hover:shadow-[0_12px_40px_-8px_rgba(34,197,94,0.4)] transition-all duration-300 relative overflow-hidden bg-white dark:bg-card">
             <CardHeader className="text-center pb-8 pt-6 relative">
-              {/* 5 Estrelas */}
-              <div className="flex gap-1 justify-center mb-4">
-                {[...Array(5)].map((_, i) => (
-                  <Star key={i} className="w-10 h-10 fill-yellow-400 text-yellow-400" />
-                ))}
-              </div>
-
-              {/* Badge MAIS VENDIDO - Vermelho Grande */}
-              <Badge className="mb-4 mx-auto bg-gradient-to-r from-red-600 to-red-500 text-white w-fit text-sm sm:text-base px-4 sm:px-6 py-2 sm:py-3 animate-pulse shadow-lg">
-                PLANO PREMIUM (MAIS VENDIDO)
-              </Badge>
-
-              {/* Mockup do Produto */}
-              <div className="relative w-full h-32 sm:h-40 mb-4 bg-gradient-to-br from-green-500/10 to-green-600/10 rounded-xl flex items-center justify-center border-2 border-green-200 dark:border-green-800">
-                <FileSpreadsheet className="w-20 h-20 sm:w-28 sm:h-28 text-green-500 opacity-60" />
-              </div>
-
               <div className="flex items-center justify-center gap-3 mb-2">
                 <h3 className="text-xl sm:text-2xl md:text-3xl font-bold">Pack Excel Completo Pro</h3>
               </div>
@@ -182,27 +165,6 @@ const Offers = () => {
           {/* Pack 2 - Office Premium */}
           <Card className="border-4 border-blue-500 hover:shadow-[0_12px_40px_-8px_rgba(59,130,246,0.4)] transition-all duration-300 relative overflow-hidden bg-gradient-to-br from-blue-500/5 to-transparent">
             <CardHeader className="text-center pb-8 pt-6 relative">
-              {/* 5 Estrelas */}
-              <div className="flex gap-1 justify-center mb-4">
-                {[...Array(5)].map((_, i) => (
-                  <Star key={i} className="w-10 h-10 fill-yellow-400 text-yellow-400" />
-                ))}
-              </div>
-
-              {/* Badge PACOTE PREMIUM - Vermelho Grande */}
-              <Badge className="mb-4 mx-auto bg-gradient-to-r from-red-600 to-red-500 text-white w-fit text-sm sm:text-base px-4 sm:px-6 py-2 sm:py-3 animate-pulse shadow-lg">
-                <Gift className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
-                PACOTE PREMIUM COMPLETO
-              </Badge>
-
-              {/* Mockup do Produto */}
-              <div className="relative w-full h-32 sm:h-40 mb-4 bg-gradient-to-br from-blue-500/10 to-blue-600/10 rounded-xl flex items-center justify-center border-2 border-blue-200 dark:border-blue-800">
-                <div className="flex -space-x-4">
-                  <FileText className="w-16 h-16 sm:w-20 sm:h-20 text-blue-500 opacity-60" />
-                  <Presentation className="w-16 h-16 sm:w-20 sm:h-20 text-blue-500 opacity-60" />
-                </div>
-              </div>
-
               <div className="flex items-center justify-center gap-3 mb-2">
                 <h3 className="text-xl sm:text-2xl md:text-3xl font-bold">Pack Office Premium</h3>
               </div>
@@ -210,12 +172,12 @@ const Offers = () => {
               <div className="space-y-1">
                 <p className="text-xs sm:text-sm text-muted-foreground line-through">De R$ 3.997,00</p>
                 <p className="text-4xl sm:text-5xl md:text-6xl font-bold" style={{ color: "#3B82F6" }}>
-                  R$ 29,99
+                  R$ 39,99
                 </p>
                 <p className="text-xs sm:text-sm text-muted-foreground">
                   pagamento único •{" "}
                   <span className="font-bold" style={{ color: "#3B82F6" }}>
-                    94% OFF
+                    99% OFF
                   </span>
                 </p>
               </div>
@@ -268,7 +230,7 @@ const Offers = () => {
                 <p className="text-xs sm:text-sm font-bold text-center">
                   💰 Economia Total:{" "}
                   <span className="text-lg sm:text-xl" style={{ color: "#3B82F6" }}>
-                    R$ 3.967
+                    R$ 3.957
                   </span>
                 </p>
                 <p className="text-[10px] sm:text-xs text-center text-muted-foreground mt-1">
@@ -284,7 +246,7 @@ const Offers = () => {
                 }}
                 onClick={() => navigate("/checkout")}
               >
-                Quero o Pacote Completo - R$ 29,99
+                Pacote Completo - R$ 39,99
               </Button>
               <p className="text-[10px] sm:text-xs text-center text-muted-foreground">
                 ⚡ Melhor custo-benefício: Mais de 60.000 arquivos!

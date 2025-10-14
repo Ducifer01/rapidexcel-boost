@@ -27,6 +27,12 @@ const Footer = () => {
             <p className="text-sm text-background/80">
               Equipe pronta para ajudar você com qualquer dúvida
             </p>
+            <a 
+              href="mailto:suporte@planilhaexpress.com.br" 
+              className="text-sm text-primary hover:text-primary/80 transition-colors inline-block"
+            >
+              suporte@planilhaexpress.com.br
+            </a>
           </div>
         </div>
 
