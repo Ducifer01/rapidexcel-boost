@@ -16,22 +16,20 @@ import { PRODUCTS } from "@/lib/products";
 import { z } from "zod";
 import { cn } from "@/lib/utils";
 
-// Inicializar Mercado Pago
-const MP_PUBLIC_KEY = "APP_USR-55b50b66-c849-4bb4-9ea7-88bc3f3db1d0";
-initMercadoPago(MP_PUBLIC_KEY, { locale: "pt-BR" });
+// Mercado Pago será inicializado dinamicamente após buscar a chave pública
 
 const checkoutSchema = z
   .object({
     name: z.string().min(3, "Nome deve ter pelo menos 3 caracteres"),
     email: z.string().email("Email inválido"),
-    confirmEmail: z.string().email("Email inválido"),
     phone: z.string().min(14, "Telefone inválido"),
     cpf: z.string().min(14, "CPF inválido"),
     password: z.string().min(6, "Senha deve ter no mínimo 6 caracteres"),
+    confirmPassword: z.string().min(6, "Confirme sua senha"),
   })
-  .refine((data) => data.email === data.confirmEmail, {
-    message: "Os emails não coincidem",
-    path: ["confirmEmail"],
+  .refine((data) => data.password === data.confirmPassword, {
+    message: "As senhas não coincidem",
+    path: ["confirmPassword"],
   });
 
 type CheckoutForm = z.infer<typeof checkoutSchema>;
@@ -40,14 +38,18 @@ const Checkout = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
 
+  // Mercado Pago initialization
+  const [mpPublicKey, setMpPublicKey] = useState<string | null>(null);
+  const [mpInitialized, setMpInitialized] = useState(false);
+
   // Form state
   const [formData, setFormData] = useState<CheckoutForm>({
     name: "",
     email: "",
-    confirmEmail: "",
     phone: "",
     cpf: "",
     password: "",
+    confirmPassword: "",
   });
   const [errors, setErrors] = useState<Partial<Record<keyof CheckoutForm, string>>>({});
   const [loading, setLoading] = useState(false);
@@ -80,6 +82,43 @@ const Checkout = () => {
   useEffect(() => {
     window.scrollTo(0, 0);
   }, []);
+
+  // Fetch Mercado Pago Public Key
+  useEffect(() => {
+    const fetchPublicKey = async () => {
+      try {
+        console.log('🔑 Buscando chave pública do Mercado Pago...');
+        const { data, error } = await supabase.functions.invoke('get-public-key');
+        
+        if (error) {
+          console.error('❌ Erro ao buscar chave pública:', error);
+          toast({
+            title: "Erro ao carregar pagamento",
+            description: "Tente recarregar a página.",
+            variant: "destructive",
+          });
+          return;
+        }
+        
+        if (data?.public_key) {
+          console.log('✅ Chave pública carregada do Supabase');
+          setMpPublicKey(data.public_key);
+          initMercadoPago(data.public_key, { locale: "pt-BR" });
+          setMpInitialized(true);
+          console.log('✅ Mercado Pago inicializado com sucesso');
+        }
+      } catch (error) {
+        console.error('❌ Erro fatal ao buscar public key:', error);
+        toast({
+          title: "Erro ao inicializar pagamento",
+          description: "Recarregue a página e tente novamente.",
+          variant: "destructive",
+        });
+      }
+    };
+
+    fetchPublicKey();
+  }, [toast]);
 
   // Timer countdown
   useEffect(() => {
@@ -162,6 +201,8 @@ const Checkout = () => {
   }, [formData.email]);
 
   const onSubmit = async (paymentFormData: any) => {
+    console.log('🚀 onSubmit chamado');
+    console.log('📦 Payment Form Data:', paymentFormData);
     setLoading(true);
 
     try {
@@ -249,7 +290,8 @@ const Checkout = () => {
         setTimeout(() => navigate("/pending"), 2000);
       }
     } catch (error: any) {
-      console.error("Erro no checkout:", error);
+      console.error("❌ ERRO COMPLETO no checkout:", error);
+      console.error("Stack:", error.stack);
       toast({
         title: "Erro no pagamento",
         description: error.message || "Tente novamente ou entre em contato com o suporte.",
@@ -261,7 +303,7 @@ const Checkout = () => {
   };
 
   const onError = (error: any) => {
-    console.error("Payment Brick error:", error);
+    console.error("❌ Payment Brick error:", error);
     toast({
       title: "Erro no pagamento",
       description: "Verifique os dados e tente novamente.",
@@ -276,18 +318,48 @@ const Checkout = () => {
     },
   };
 
-  const customization = {
-    paymentMethods: {
-      creditCard: paymentMethod === 'credit' ? 'all' : undefined,
-      bankTransfer: paymentMethod === 'pix' ? ['pix'] : undefined,
-      maxInstallments: 2,
-    },
-    visual: {
-      style: {
-        theme: 'default' as const,
+  // Preparar customization de forma tipada corretamente
+  const getCustomization = () => {
+    if (paymentMethod === 'credit') {
+      return {
+        paymentMethods: {
+          creditCard: 'all' as const,
+          maxInstallments: 2,
+        },
+        visual: {
+          style: {
+            theme: 'default' as const,
+          },
+        },
+      };
+    } else if (paymentMethod === 'pix') {
+      return {
+        paymentMethods: {
+          bankTransfer: ['pix' as const],
+        },
+        visual: {
+          style: {
+            theme: 'default' as const,
+          },
+        },
+      };
+    }
+    
+    // Default fallback (não deve acontecer)
+    return {
+      paymentMethods: {
+        creditCard: 'all' as const,
+        maxInstallments: 2,
       },
-    },
+      visual: {
+        style: {
+          theme: 'default' as const,
+        },
+      },
+    };
   };
+
+  const customization = getCustomization();
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5">
@@ -426,19 +498,6 @@ const Checkout = () => {
                   {errors.email && <p className="text-sm text-destructive">{errors.email}</p>}
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="confirmEmail">Confirmar Email</Label>
-                  <Input
-                    id="confirmEmail"
-                    type="email"
-                    placeholder="Confirme seu email"
-                    className="h-12 text-lg"
-                    value={formData.confirmEmail}
-                    onChange={(e) => handleInputChange("confirmEmail", e.target.value)}
-                    disabled={loading}
-                  />
-                  {errors.confirmEmail && <p className="text-sm text-destructive">{errors.confirmEmail}</p>}
-                </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="phone">Telefone</Label>
@@ -480,6 +539,20 @@ const Checkout = () => {
                     disabled={loading}
                   />
                   {errors.password && <p className="text-sm text-destructive">{errors.password}</p>}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="confirmPassword">Confirmar Senha</Label>
+                  <Input
+                    id="confirmPassword"
+                    type="password"
+                    placeholder="Digite sua senha novamente"
+                    className="h-12 text-lg"
+                    value={formData.confirmPassword}
+                    onChange={(e) => handleInputChange("confirmPassword", e.target.value)}
+                    disabled={loading}
+                  />
+                  {errors.confirmPassword && <p className="text-sm text-destructive">{errors.confirmPassword}</p>}
                 </div>
               </CardContent>
             </Card>
@@ -533,8 +606,19 @@ const Checkout = () => {
               </CardContent>
             </Card>
 
-            {/* Payment Brick - Only show after payment method selection */}
-            {paymentMethod && (
+            {/* Payment Brick - Only show after MP initialized and payment method selected */}
+            {!mpInitialized && (
+              <Card>
+                <CardContent className="p-8">
+                  <div className="flex flex-col items-center justify-center gap-4">
+                    <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                    <p className="text-muted-foreground">Carregando métodos de pagamento...</p>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {mpInitialized && paymentMethod && (
               <Card>
                 <CardHeader>
                   <CardTitle>Dados de Pagamento</CardTitle>
@@ -548,6 +632,9 @@ const Checkout = () => {
                     customization={customization}
                     onSubmit={onSubmit}
                     onError={onError}
+                    onReady={() => {
+                      console.log('✅ Payment Brick renderizado com sucesso');
+                    }}
                   />
                 </CardContent>
               </Card>

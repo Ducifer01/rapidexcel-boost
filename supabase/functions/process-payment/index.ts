@@ -23,6 +23,10 @@ const VALID_PRODUCTS = {
 };
 
 serve(async (req) => {
+  console.log('📥 ============ PROCESS-PAYMENT CHAMADA ============');
+  console.log('📥 Method:', req.method);
+  console.log('📥 Headers:', Object.fromEntries(req.headers.entries()));
+  
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -30,7 +34,10 @@ serve(async (req) => {
   try {
     logStep('Iniciando processamento de pagamento via Payment Brick');
     
-    const { formData, userData, selectedProducts } = await req.json();
+    const body = await req.json();
+    console.log('📦 Body raw recebido:', JSON.stringify(body, null, 2));
+    
+    const { formData, userData, selectedProducts } = body;
     logStep('Dados recebidos', { 
       hasFormData: !!formData, 
       userData: userData?.email,
