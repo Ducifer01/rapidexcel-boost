@@ -347,16 +347,20 @@ const Checkout = () => {
                             13.000 Planilhas Excel + 50 Dashboards
                           </p>
                           <p className="flex items-center gap-2">
-                            <Gift className="w-4 h-4 text-primary" />
+                            <CheckCircle2 className="w-4 h-4 text-primary" />
                             +2.000 Templates Word
                           </p>
                           <p className="flex items-center gap-2">
-                            <Gift className="w-4 h-4 text-primary" />
-                            +50.000 Slides PowerPoint
+                            <CheckCircle2 className="w-4 h-4 text-primary" />
+                            +50.000 Slides PowerPoint Templates Word
                           </p>
                           <p className="flex items-center gap-2">
                             <Gift className="w-4 h-4 text-primary" />
-                            BÔNUS: 6.000 Planilhas Extras
+                            BÔNUS: +6.000 Planilhas Extras
+                          </p>
+                          <p className="flex items-center gap-2">
+                            <Gift className="w-4 h-4 text-primary" />
+                            BÔNUS: Ebook como conquistar clientes.
                           </p>
                         </div>
                       </div>
@@ -449,9 +453,7 @@ const Checkout = () => {
                   <Lock className="w-5 h-5" />
                   Pagamento Seguro
                 </CardTitle>
-                <CardDescription>
-                  💳 Cartão de Crédito até 2x | 💳 Débito | 🔵 PIX (aprovação instantânea)
-                </CardDescription>
+                <CardDescription>💳 Cartão de Crédito até 2x | 💳 Débito | ❖ PIX</CardDescription>
               </CardHeader>
               <CardContent>
                 {loading ? (
