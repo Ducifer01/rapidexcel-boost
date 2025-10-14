@@ -11,7 +11,6 @@ const logStep = (step: string, data?: any) => {
 };
 
 serve(async (req) => {
-  // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -19,9 +18,8 @@ serve(async (req) => {
   try {
     logStep('Iniciando process-payment');
     
-    // Parse request body
     const body = await req.json();
-    logStep('Body recebido', { bodyKeys: Object.keys(body) });
+    logStep('Body recebido', { hasExternalRef: !!body.external_reference });
     
     const { external_reference, ...mpFormData } = body;
     
@@ -31,13 +29,16 @@ serve(async (req) => {
     
     logStep('External reference', { external_reference });
     
-    // Get Mercado Pago access token
     const accessToken = Deno.env.get('MERCADOPAGO_ACCESS_TOKEN');
     if (!accessToken) {
       throw new Error('MERCADOPAGO_ACCESS_TOKEN não configurado');
     }
     
-    // Create payment at Mercado Pago
+    // Não passar entity_type no payer (evita warnings)
+    if (mpFormData.payer && mpFormData.payer.entity_type) {
+      delete mpFormData.payer.entity_type;
+    }
+    
     logStep('Criando pagamento no Mercado Pago');
     
     const mpResponse = await fetch('https://api.mercadopago.com/v1/payments', {
@@ -54,7 +55,7 @@ serve(async (req) => {
     });
     
     const responseText = await mpResponse.text();
-    logStep('Resposta do MP', { status: mpResponse.status, text: responseText.substring(0, 500) });
+    logStep('Resposta do MP', { status: mpResponse.status, hasResponse: !!responseText });
     
     if (!mpResponse.ok) {
       throw new Error(`Mercado Pago error: ${responseText}`);
@@ -67,7 +68,6 @@ serve(async (req) => {
       payment_type_id: mpPayment.payment_type_id 
     });
     
-    // Update purchase in database
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''

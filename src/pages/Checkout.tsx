@@ -1,515 +1,321 @@
-import { useEffect, useState } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { initMercadoPago, Payment } from "@mercadopago/sdk-react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { initMercadoPago, Payment } from '@mercadopago/sdk-react';
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Shield, Clock, Users, Star } from "lucide-react";
-import { formatCPF } from "@/lib/cpf-utils";
+import { Card } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import { CheckCircle2, CreditCard, QrCode, FileText } from "lucide-react";
 import { PRODUCTS } from "@/lib/products";
+import { toast } from "sonner";
+
+type PaymentMethod = "pix" | "credit" | "boleto";
 
 const Checkout = () => {
   const navigate = useNavigate();
-  const location = useLocation();
-  
-  // MP initialization
+  const [step, setStep] = useState<1 | 2 | 3>(1);
+  const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
+  const [selectedMethod, setSelectedMethod] = useState<PaymentMethod | null>(null);
+  const [amount, setAmount] = useState<number>(0);
+  const [preferenceId, setPreferenceId] = useState<string | null>(null);
+  const [externalReference, setExternalReference] = useState<string | null>(null);
   const [mpReady, setMpReady] = useState(false);
-  const [mpPublicKey, setMpPublicKey] = useState("");
-  
-  // Payment data
-  const [preferenceId, setPreferenceId] = useState("");
-  const [externalReference, setExternalReference] = useState("");
-  const [amount, setAmount] = useState(0);
-  
-  // Form state
-  const [formData, setFormData] = useState({
-    name: "",
-    email: "",
-    phone: "",
-    cpf: "",
-    password: "",
-    confirmPassword: ""
-  });
-  
-  const [selectedProducts, setSelectedProducts] = useState<string[]>([]);
-  const [errors, setErrors] = useState<Record<string, string>>({});
-  const [loading, setLoading] = useState(false);
-  const [emailExists, setEmailExists] = useState(false);
+  const [loadingPref, setLoadingPref] = useState(false);
+  const [brickReady, setBrickReady] = useState(false);
 
-  // Social proof
-  const [viewCount, setViewCount] = useState(127);
-  const [timeLeft, setTimeLeft] = useState(15 * 60);
-
-  // Initialize Mercado Pago
+  // Inicializar Mercado Pago
   useEffect(() => {
     const initMP = async () => {
       try {
-        const { data, error } = await supabase.functions.invoke('get-public-key');
-        
+        const { data, error } = await supabase.functions.invoke("get-public-key");
         if (error) throw error;
-        if (!data?.public_key) throw new Error('Public key não retornada');
-        
-        setMpPublicKey(data.public_key);
-        initMercadoPago(data.public_key, { locale: 'pt-BR' });
-        setMpReady(true);
+        if (data?.public_key) {
+          initMercadoPago(data.public_key, { locale: "pt-BR" });
+          setMpReady(true);
+        }
       } catch (error) {
-        console.error('Erro ao inicializar MP:', error);
+        console.error("Erro ao inicializar MP:", error);
+        toast.error("Erro ao carregar forma de pagamento");
       }
     };
-    
     initMP();
   }, []);
 
-  // Check if coming from Index with pre-selected products
+  // Atualizar amount quando produto selecionado
   useEffect(() => {
-    const params = new URLSearchParams(location.search);
-    const productsParam = params.get('products');
-    if (productsParam) {
-      const products = productsParam.split(',');
-      setSelectedProducts(products);
+    if (selectedProductId) {
+      const product = PRODUCTS.find((p) => p.id === selectedProductId);
+      if (product) {
+        setAmount(product.price);
+      }
     }
-  }, [location.search]);
+  }, [selectedProductId]);
 
-  // Timer countdown
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setTimeLeft((prev) => (prev > 0 ? prev - 1 : 0));
-    }, 1000);
-    return () => clearInterval(timer);
-  }, []);
+  // Criar preferência ao selecionar método de pagamento
+  const handleMethodSelect = async (method: PaymentMethod) => {
+    setSelectedMethod(method);
+    setLoadingPref(true);
 
-  // Animate view count
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setViewCount((prev) => prev + Math.floor(Math.random() * 3));
-    }, 5000);
-    return () => clearInterval(interval);
-  }, []);
+    try {
+      const { data, error } = await supabase.functions.invoke("create-payment", {
+        body: {
+          product_ids: [selectedProductId],
+        },
+      });
 
-  // Check email existence
-  useEffect(() => {
-    const checkEmail = async () => {
-      if (formData.email && formData.email.includes('@')) {
-        const { data } = await supabase
-          .from('users')
-          .select('email')
-          .eq('email', formData.email)
-          .maybeSingle();
-        
-        setEmailExists(!!data);
-      }
-    };
-    
-    const timeoutId = setTimeout(checkEmail, 500);
-    return () => clearTimeout(timeoutId);
-  }, [formData.email]);
+      if (error) throw error;
 
-  // Create preference when form is ready
-  useEffect(() => {
-    const createPreference = async () => {
-      if (!formData.name || !formData.email || !formData.password || selectedProducts.length === 0) {
-        return;
-      }
-      
-      if (emailExists) {
-        setErrors(prev => ({ ...prev, email: 'Este email já está cadastrado. Faça login.' }));
-        return;
-      }
-
-      if (formData.password !== formData.confirmPassword) {
-        setErrors(prev => ({ ...prev, confirmPassword: 'As senhas não coincidem' }));
-        return;
-      }
-
-      try {
-        setLoading(true);
-        
-        // Calculate amount
-        const totalAmount = selectedProducts.reduce((sum, productId) => {
-          const product = PRODUCTS.find(p => p.id === productId);
-          return sum + (product?.price || 0);
-        }, 0);
-        
-        setAmount(totalAmount);
-
-        // Call create-payment
-        const { data, error } = await supabase.functions.invoke('create-payment', {
-          body: {
-            product_ids: selectedProducts,
-            payer: {
-              name: formData.name,
-              email: formData.email,
-            },
-            password: formData.password,
-          }
-        });
-
-        if (error) throw error;
-        
+      if (data?.preference_id && data?.external_reference) {
         setPreferenceId(data.preference_id);
         setExternalReference(data.external_reference);
-      } catch (error) {
-        console.error('Erro ao criar preferência:', error);
-      } finally {
-        setLoading(false);
+        setStep(3);
+      } else {
+        throw new Error("Resposta inválida do servidor");
       }
+    } catch (error: any) {
+      console.error("Erro ao criar preferência:", error);
+      toast.error(error.message || "Erro ao processar pagamento");
+    } finally {
+      setLoadingPref(false);
+    }
+  };
+
+  // Configuração do Brick por método
+  const getCustomization = () => {
+    const baseCustomization = {
+      visual: { style: { theme: "default" as const } },
     };
 
-    createPreference();
-  }, [formData.name, formData.email, formData.password, formData.confirmPassword, selectedProducts, emailExists]);
-
-  const handleInputChange = (field: string, value: string) => {
-    let formattedValue = value;
-    
-    if (field === 'cpf') {
-      formattedValue = formatCPF(value);
-    } else if (field === 'phone') {
-      formattedValue = value.replace(/\D/g, '').slice(0, 11);
+    if (selectedMethod === "pix") {
+      return {
+        ...baseCustomization,
+        paymentMethods: {
+          bankTransfer: ["pix"],
+        },
+      };
+    } else if (selectedMethod === "credit") {
+      return {
+        ...baseCustomization,
+        paymentMethods: {
+          creditCard: "all" as const,
+          maxInstallments: 1,
+        },
+      };
+    } else if (selectedMethod === "boleto") {
+      return {
+        ...baseCustomization,
+        paymentMethods: {
+          ticket: "all" as const,
+        },
+      };
     }
     
-    setFormData(prev => ({ ...prev, [field]: formattedValue }));
-    setErrors(prev => ({ ...prev, [field]: '' }));
+    return {
+      ...baseCustomization,
+      paymentMethods: {
+        creditCard: "all" as const,
+        bankTransfer: "all" as const,
+        ticket: "all" as const,
+        maxInstallments: 1,
+      },
+    };
   };
 
-  const handleProductSelection = (productId: string) => {
-    setSelectedProducts(prev => {
-      if (prev.includes(productId)) {
-        return prev.filter(id => id !== productId);
-      }
-      return [...prev, productId];
-    });
-  };
-
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-  };
-
-  const onSubmit = async ({ selectedPaymentMethod, formData: brickFormData }: any) => {
+  const onSubmit = async ({ formData }: any) => {
     return new Promise((resolve, reject) => {
-      supabase.functions.invoke('process-payment', {
-        body: {
-          ...brickFormData,
-          external_reference: externalReference,
-        }
-      })
-      .then(({ data, error }) => {
-        if (error) {
-          console.error('Erro ao processar pagamento:', error);
-          return reject(error);
-        }
-        
-        const status = data?.payment?.status || data?.status;
-        
-        if (status === 'approved') {
-          navigate('/success');
-        } else if (status === 'pending' || status === 'in_process') {
-          navigate('/pending');
-        } else {
-          navigate('/failure');
-        }
-        
-        resolve(data);
-      })
-      .catch(err => {
-        console.error('Erro na chamada:', err);
-        reject(err);
-      });
+      supabase.functions
+        .invoke("process-payment", {
+          body: { ...formData, external_reference: externalReference },
+        })
+        .then(({ data, error }) => {
+          if (error) return reject(error);
+          const status = data?.payment?.status || data?.status;
+          if (status === "approved") navigate("/success");
+          else if (status === "pending" || status === "in_process") navigate("/pending");
+          else navigate("/failure");
+          resolve(data);
+        })
+        .catch(reject);
     });
   };
 
-  const onReady = () => {
-    console.log('Payment Brick está pronto');
-  };
-
-  const onError = (error: any) => {
-    console.error('Erro no Payment Brick:', error);
-  };
-
-  const [firstName, lastName] = formData.name.split(' ');
-
-  const initialization = {
-    amount,
-    preferenceId,
-    payer: {
-      firstName: firstName || '',
-      lastName: lastName || '',
-      email: formData.email,
-    }
-  };
-
-  const customization = {
-    paymentMethods: {
-      ticket: 'all' as const,
-      bankTransfer: 'all' as const,
-      creditCard: 'all' as const,
-      debitCard: 'all' as const,
-      mercadoPago: 'all' as const,
-      maxInstallments: 1,
-    },
-    visual: {
-      style: {
-        theme: 'default' as const,
-      }
-    }
-  };
-
-  const canRenderBrick = mpReady && preferenceId && amount > 0 && formData.name && formData.email;
+  const canRenderBrick = mpReady && preferenceId && externalReference && amount > 0;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5">
-      {/* Header */}
-      <div className="sticky top-0 z-50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Shield className="h-5 w-5 text-primary" />
-              <span className="text-sm font-medium">Checkout Seguro</span>
-            </div>
-            {timeLeft > 0 && (
-              <div className="flex items-center gap-2 text-sm">
-                <Clock className="h-4 w-4 text-primary" />
-                <span className="font-medium">Oferta expira em: {formatTime(timeLeft)}</span>
+      <div className="container mx-auto px-4 py-8 max-w-4xl">
+        {/* Header */}
+        <div className="text-center mb-8">
+          <h1 className="text-4xl font-bold mb-2">Finalizar Compra</h1>
+          <p className="text-muted-foreground">
+            {step === 1 && "Escolha seu produto"}
+            {step === 2 && "Escolha a forma de pagamento"}
+            {step === 3 && "Complete seu pagamento"}
+          </p>
+        </div>
+
+        {/* Step 1: Seleção de Produto */}
+        {step === 1 && (
+          <div className="space-y-4">
+            {PRODUCTS.map((product) => (
+              <Card
+                key={product.id}
+                className={`p-6 cursor-pointer transition-all hover:shadow-lg ${
+                  selectedProductId === product.id
+                    ? "ring-2 ring-primary bg-primary/5"
+                    : ""
+                }`}
+                onClick={() => setSelectedProductId(product.id)}
+              >
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <h3 className="text-xl font-bold mb-2">{product.name}</h3>
+                    <p className="text-muted-foreground mb-4">{product.description}</p>
+                    <p className="text-2xl font-bold text-primary">
+                      R$ {product.price.toFixed(2)}
+                    </p>
+                  </div>
+                  {selectedProductId === product.id && (
+                    <CheckCircle2 className="w-6 h-6 text-primary flex-shrink-0" />
+                  )}
+                </div>
+              </Card>
+            ))}
+
+            <Button
+              size="lg"
+              className="w-full"
+              disabled={!selectedProductId}
+              onClick={() => setStep(2)}
+            >
+              Continuar
+            </Button>
+          </div>
+        )}
+
+        {/* Step 2: Seleção de Método */}
+        {step === 2 && (
+          <div className="space-y-4">
+            <Button
+              variant="outline"
+              className="w-full h-auto p-6 justify-start"
+              disabled={loadingPref}
+              onClick={() => handleMethodSelect("pix")}
+            >
+              <QrCode className="w-8 h-8 mr-4" />
+              <div className="text-left">
+                <div className="font-bold text-lg">PIX</div>
+                <div className="text-sm text-muted-foreground">
+                  Aprovação instantânea
+                </div>
               </div>
-            )}
+            </Button>
+
+            <Button
+              variant="outline"
+              className="w-full h-auto p-6 justify-start"
+              disabled={loadingPref}
+              onClick={() => handleMethodSelect("credit")}
+            >
+              <CreditCard className="w-8 h-8 mr-4" />
+              <div className="text-left">
+                <div className="font-bold text-lg">Cartão de Crédito</div>
+                <div className="text-sm text-muted-foreground">
+                  Parcelamento em até 1x
+                </div>
+              </div>
+            </Button>
+
+            <Button
+              variant="outline"
+              className="w-full h-auto p-6 justify-start"
+              disabled={loadingPref}
+              onClick={() => handleMethodSelect("boleto")}
+            >
+              <FileText className="w-8 h-8 mr-4" />
+              <div className="text-left">
+                <div className="font-bold text-lg">Boleto Bancário</div>
+                <div className="text-sm text-muted-foreground">
+                  Aprovação em 1-2 dias úteis
+                </div>
+              </div>
+            </Button>
+
+            <Button variant="ghost" className="w-full" onClick={() => setStep(1)}>
+              Voltar
+            </Button>
           </div>
-        </div>
-      </div>
+        )}
 
-      <div className="container mx-auto px-4 py-8 max-w-7xl">
-        <div className="grid lg:grid-cols-3 gap-8">
-          {/* Main Content */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* View Counter */}
-            <Card className="border-primary/20">
-              <CardContent className="pt-6">
-                <div className="flex items-center gap-2 text-sm">
-                  <Users className="h-4 w-4 text-primary" />
-                  <span><strong>{viewCount}</strong> pessoas estão visualizando esta oferta agora</span>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Product Selection */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Escolha seu Pacote</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <RadioGroup value={selectedProducts[0] || ""} onValueChange={(value) => setSelectedProducts([value])}>
-                  <div className="space-y-3">
-                    {PRODUCTS.map((product) => (
-                      <div key={product.id} className="flex items-center space-x-3 p-4 border rounded-lg hover:border-primary transition-colors">
-                        <RadioGroupItem value={product.id} id={product.id} />
-                        <Label htmlFor={product.id} className="flex-1 cursor-pointer">
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <p className="font-semibold">{product.name}</p>
-                              <p className="text-sm text-muted-foreground">{product.description}</p>
-                            </div>
-                            <p className="text-lg font-bold text-primary">
-                              R$ {product.price.toFixed(2)}
-                            </p>
-                          </div>
-                        </Label>
-                      </div>
-                    ))}
-                  </div>
-                </RadioGroup>
-              </CardContent>
-            </Card>
-
-            {/* User Data Form */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Seus Dados</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <Label htmlFor="name">Nome Completo</Label>
-                  <Input
-                    id="name"
-                    value={formData.name}
-                    onChange={(e) => handleInputChange('name', e.target.value)}
-                    placeholder="Seu nome completo"
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="email">Email</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    value={formData.email}
-                    onChange={(e) => handleInputChange('email', e.target.value)}
-                    placeholder="seu@email.com"
-                  />
-                  {emailExists && (
-                    <p className="text-sm text-destructive mt-1">Este email já está cadastrado</p>
-                  )}
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="phone">Telefone</Label>
-                    <Input
-                      id="phone"
-                      value={formData.phone}
-                      onChange={(e) => handleInputChange('phone', e.target.value)}
-                      placeholder="(00) 00000-0000"
-                    />
-                  </div>
-
-                  <div>
-                    <Label htmlFor="cpf">CPF</Label>
-                    <Input
-                      id="cpf"
-                      value={formData.cpf}
-                      onChange={(e) => handleInputChange('cpf', e.target.value)}
-                      placeholder="000.000.000-00"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <Label htmlFor="password">Senha</Label>
-                  <Input
-                    id="password"
-                    type="password"
-                    value={formData.password}
-                    onChange={(e) => handleInputChange('password', e.target.value)}
-                    placeholder="Crie uma senha"
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="confirmPassword">Confirmar Senha</Label>
-                  <Input
-                    id="confirmPassword"
-                    type="password"
-                    value={formData.confirmPassword}
-                    onChange={(e) => handleInputChange('confirmPassword', e.target.value)}
-                    placeholder="Confirme sua senha"
-                  />
-                  {errors.confirmPassword && (
-                    <p className="text-sm text-destructive mt-1">{errors.confirmPassword}</p>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Payment Section */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Pagamento</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {!mpReady && (
-                  <div className="py-8 text-center text-muted-foreground">
-                    Carregando Mercado Pago...
-                  </div>
-                )}
-                
-                {mpReady && !canRenderBrick && (
-                  <div className="py-8 text-center text-muted-foreground">
-                    Preencha todos os dados acima para continuar
-                  </div>
-                )}
-                
-                {canRenderBrick && (
-                  <div className="min-h-[300px] w-full">
-                    <Payment
-                      initialization={initialization}
-                      customization={customization}
-                      onSubmit={onSubmit}
-                      onReady={onReady}
-                      onError={onError}
-                    />
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Sidebar */}
+        {/* Step 3: Payment Brick */}
+        {step === 3 && (
           <div className="space-y-6">
-            {/* Order Summary */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Resumo do Pedido</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {selectedProducts.map(productId => {
-                  const product = PRODUCTS.find(p => p.id === productId);
-                  if (!product) return null;
-                  return (
-                    <div key={product.id} className="flex justify-between">
-                      <span>{product.name}</span>
-                      <span className="font-semibold">R$ {product.price.toFixed(2)}</span>
-                    </div>
-                  );
-                })}
-                <div className="border-t pt-4">
-                  <div className="flex justify-between text-lg font-bold">
-                    <span>Total</span>
-                    <span className="text-primary">R$ {amount.toFixed(2)}</span>
-                  </div>
-                </div>
-              </CardContent>
+            <Card className="p-6">
+              <h2 className="text-xl font-bold mb-4">Resumo do Pedido</h2>
+              <div className="flex justify-between items-center mb-2">
+                <span>Produto:</span>
+                <span className="font-semibold">
+                  {PRODUCTS.find((p) => p.id === selectedProductId)?.name}
+                </span>
+              </div>
+              <div className="flex justify-between items-center mb-2">
+                <span>Método:</span>
+                <span className="font-semibold capitalize">{selectedMethod}</span>
+              </div>
+              <div className="border-t pt-2 mt-2 flex justify-between items-center">
+                <span className="text-lg font-bold">Total:</span>
+                <span className="text-2xl font-bold text-primary">
+                  R$ {amount.toFixed(2)}
+                </span>
+              </div>
             </Card>
 
-            {/* Trust Badges */}
-            <Card>
-              <CardContent className="pt-6 space-y-4">
-                <div className="flex items-center gap-3">
-                  <Shield className="h-5 w-5 text-primary" />
-                  <div>
-                    <p className="font-semibold">Compra 100% Segura</p>
-                    <p className="text-sm text-muted-foreground">Seus dados estão protegidos</p>
-                  </div>
+            <Card className="p-6">
+              <h2 className="text-xl font-bold mb-4">Dados do Pagamento</h2>
+              
+              {!brickReady && canRenderBrick && (
+                <div className="space-y-3">
+                  <Skeleton className="h-12 w-full" />
+                  <Skeleton className="h-12 w-full" />
+                  <Skeleton className="h-12 w-full" />
+                  <Skeleton className="h-12 w-full" />
                 </div>
-                <div className="flex items-center gap-3">
-                  <Star className="h-5 w-5 text-primary" />
-                  <div>
-                    <p className="font-semibold">Satisfação Garantida</p>
-                    <p className="text-sm text-muted-foreground">7 dias de garantia</p>
-                  </div>
-                </div>
-              </CardContent>
+              )}
+
+              <div className={brickReady ? "" : "opacity-0 h-0 overflow-hidden"}>
+                {canRenderBrick && (
+                  <Payment
+                    initialization={{
+                      amount,
+                      preferenceId,
+                    }}
+                    customization={getCustomization()}
+                    onSubmit={onSubmit}
+                    onReady={() => setBrickReady(true)}
+                    onError={(error) => {
+                      console.error("Erro no Brick:", error);
+                      toast.error("Erro ao carregar pagamento");
+                    }}
+                  />
+                )}
+              </div>
             </Card>
 
-            {/* Mini Testimonials */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">O que nossos clientes dizem</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <div className="flex gap-1">
-                    {[...Array(5)].map((_, i) => (
-                      <Star key={i} className="h-4 w-4 fill-primary text-primary" />
-                    ))}
-                  </div>
-                  <p className="text-sm">"Excelente produto, super recomendo!"</p>
-                  <p className="text-xs text-muted-foreground">- Maria Silva</p>
-                </div>
-                <div className="space-y-2">
-                  <div className="flex gap-1">
-                    {[...Array(5)].map((_, i) => (
-                      <Star key={i} className="h-4 w-4 fill-primary text-primary" />
-                    ))}
-                  </div>
-                  <p className="text-sm">"Valeu muito a pena, entrega rápida."</p>
-                  <p className="text-xs text-muted-foreground">- João Santos</p>
-                </div>
-              </CardContent>
-            </Card>
+            <Button
+              variant="ghost"
+              className="w-full"
+              onClick={() => {
+                setStep(2);
+                setPreferenceId(null);
+                setExternalReference(null);
+                setSelectedMethod(null);
+                setBrickReady(false);
+              }}
+            >
+              Voltar
+            </Button>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );
