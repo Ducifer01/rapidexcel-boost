@@ -3,6 +3,10 @@ export interface Product {
   name: string;
   description: string;
   price: number;
+  originalPrice?: number;
+  isUpsell?: boolean;
+  requiredProducts?: string[];
+  savings?: number;
 }
 
 export const PRODUCTS: Product[] = [
@@ -11,12 +15,19 @@ export const PRODUCTS: Product[] = [
     name: 'Pack Excel Completo Pro - 13.000 Planilhas',
     description: 'Acesso completo a mais de 13.000 planilhas Excel profissionais + 50 dashboards extras premium. Categorias: Finanças, RH, Vendas, Engenharia, Logística, Pessoal e muito mais!',
     price: 12.99,
+    originalPrice: 1997,
+    isUpsell: false,
+    savings: 1984.01,
   },
   {
     id: 'pack_2',
     name: 'Pack Office Premium - Templates Word + Slides PowerPoint',
     description: 'Upgrade completo: +2.000 templates Word profissionais + 50.000 slides PowerPoint para apresentações + BÔNUS: 6.000 planilhas Excel extras + materiais exclusivos',
-    price: 29.99,
+    price: 39.99,
+    originalPrice: 3997,
+    isUpsell: true,
+    requiredProducts: ['pack_1'],
+    savings: 3957.01,
   },
 ];
 

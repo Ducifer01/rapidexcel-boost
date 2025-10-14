@@ -32,7 +32,17 @@ serve(async (req) => {
   try {
     logStep('Iniciando criação de pagamento');
     
-    const { product_ids, payer, back_urls, password, authenticated_user_id } = await req.json();
+  const {
+    product_ids = [],
+    payer,
+    back_urls = {
+      success: 'https://seusite.com/success',
+      failure: 'https://seusite.com/failure',
+      pending: 'https://seusite.com/pending',
+    },
+    password,
+    authenticated_user_id,
+  } = await req.json();
     logStep('Dados recebidos', { product_ids, has_payer: !!payer, authenticated: !!authenticated_user_id });
 
     // Validar IDs dos produtos
@@ -46,34 +56,10 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    // Validar que Pack 2 não vem sozinho (apenas em checkout público COM dados de payer)
-    if (product_ids.length === 1 && product_ids[0] === 'pack_2' && !authenticated_user_id && payer) {
-      logStep('Tentativa de compra do pack_2 sozinho em checkout público');
-      throw new Error('Pack 2 só pode ser comprado junto com Pack 1');
-    }
-    
-    // Se usuário autenticado tenta comprar pack_2 sozinho, verificar se tem pack_1
-    if (product_ids.length === 1 && product_ids[0] === 'pack_2' && authenticated_user_id) {
-      logStep('Verificando acesso ao pack_1 para compra do pack_2', { userId: authenticated_user_id });
-      
-      const { data: hasPack1, error: accessError } = await supabase
-        .rpc('user_has_product_access', {
-          _user_id: authenticated_user_id,
-          _product_name: 'Pack Excel Completo Pro - 13.000 Planilhas'
-        });
-      
-      if (accessError) {
-        logStep('ERRO ao verificar acesso ao pack_1', accessError);
-        throw new Error('Erro ao verificar produtos existentes');
-      }
-      
-      if (!hasPack1) {
-        logStep('Usuário não possui pack_1', { userId: authenticated_user_id });
-        throw new Error('Para comprar o Pack Office Premium, você precisa primeiro adquirir o Pack Excel Completo Pro');
-      }
-      
-      logStep('Usuário possui pack_1, permitindo compra do pack_2', { userId: authenticated_user_id });
-    }
+  // Validação: pack_2 só pode ser comprado junto com pack_1
+  if (product_ids.includes('pack_2') && !product_ids.includes('pack_1')) {
+    throw new Error('Pack Office Premium deve ser comprado junto com Pack Excel');
+  }
 
     // Construir items com preços SEGUROS do servidor
     const items = product_ids.map((id: string) => {
@@ -219,17 +205,13 @@ serve(async (req) => {
       }
     }
 
-    // Criar preferência no MercadoPago
+  // Criar preferência no MercadoPago
     const preferenceData: any = {
       items,
-      back_urls: back_urls || {
-        success: `${req.headers.get('origin')}/success`,
-        failure: `${req.headers.get('origin')}/failure`,
-        pending: `${req.headers.get('origin')}/pending`,
-      },
-      notification_url: `${Deno.env.get('SUPABASE_URL')}/functions/v1/payment-webhook`,
-      external_reference: purchase.id,
+      back_urls: back_urls,
       auto_return: 'approved',
+      external_reference: purchase.id,
+      notification_url: `${Deno.env.get('SUPABASE_URL')}/functions/v1/payment-webhook`,
       statement_descriptor: 'PLANILHAEXPRESS',
       payment_methods: {
         excluded_payment_types: [],
@@ -238,16 +220,16 @@ serve(async (req) => {
       },
     };
 
-    // Adicionar payer apenas se houver dados
-    if (userName && userEmail) {
+    // Adicionar payer se fornecido
+    if (payer && payer.email) {
       preferenceData.payer = {
-        name: userName,
-        email: userEmail,
+        email: payer.email,
+        ...(payer.name && { name: payer.name }),
+        ...(payer.identification && {
+          identification: payer.identification,
+        }),
+        ...(payer.phone && { phone: payer.phone }),
       };
-      
-      if (payer?.identification) {
-        preferenceData.payer.identification = payer.identification;
-      }
     }
 
     logStep('Enviando para MercadoPago', { url: 'https://api.mercadopago.com/checkout/preferences', purchaseId: purchase.id, has_payer: !!preferenceData.payer });
