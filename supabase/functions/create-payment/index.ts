@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -9,6 +10,58 @@ const corsHeaders = {
 const logStep = (step: string, details?: any) => {
   console.log(`[CREATE-PAYMENT] ${step}`, details ? JSON.stringify(details) : '');
 };
+
+// Validation schemas
+const PayerSchema = z.object({
+  name: z.string().trim().min(3, 'Nome deve ter no mínimo 3 caracteres').max(100, 'Nome muito longo'),
+  email: z.string().trim().email('Email inválido').max(255, 'Email muito longo'),
+  identification: z.object({
+    type: z.literal('CPF'),
+    number: z.string().regex(/^\d{11}$/, 'CPF deve conter 11 dígitos')
+  }),
+  phone: z.object({
+    area_code: z.string().regex(/^\d{2}$/, 'DDD deve conter 2 dígitos'),
+    number: z.string().regex(/^\d{8,9}$/, 'Telefone deve conter 8 ou 9 dígitos')
+  })
+});
+
+const PasswordSchema = z.string()
+  .min(6, 'Senha deve ter no mínimo 6 caracteres')
+  .max(128, 'Senha muito longa');
+
+const RequestSchema = z.object({
+  product_ids: z.array(z.string()).min(1, 'Selecione ao menos um produto'),
+  payer: PayerSchema.optional(),
+  password: PasswordSchema.optional(),
+  authenticated_user_id: z.string().uuid().optional(),
+  back_urls: z.object({
+    success: z.string().url(),
+    failure: z.string().url(),
+    pending: z.string().url()
+  }).optional()
+});
+
+// Rate limiting helper
+async function checkRateLimit(supabase: any, identifier: string, functionName: string, maxRequests: number): Promise<boolean> {
+  try {
+    const { data, error } = await supabase.rpc('check_rate_limit', {
+      _identifier: identifier,
+      _function_name: functionName,
+      _max_requests: maxRequests,
+      _window_minutes: 1
+    });
+    
+    if (error) {
+      logStep('Rate limit check error', error);
+      return true; // Allow on error to avoid blocking legitimate users
+    }
+    
+    return data === true;
+  } catch (error) {
+    logStep('Rate limit exception', error);
+    return true; // Allow on error
+  }
+}
 
 // PRODUTOS VÁLIDOS - Definição centralizada (server-side source of truth)
 const VALID_PRODUCTS = {
@@ -32,34 +85,61 @@ serve(async (req) => {
   try {
     logStep('Iniciando criação de pagamento');
     
-  const {
-    product_ids = [],
-    payer,
-    back_urls = {
-      success: 'https://seusite.com/success',
-      failure: 'https://seusite.com/failure',
-      pending: 'https://seusite.com/pending',
-    },
-    password,
-    authenticated_user_id,
-  } = await req.json();
-    logStep('Dados recebidos', { product_ids, has_payer: !!payer, authenticated: !!authenticated_user_id });
-
-    // Validar IDs dos produtos
-    if (!product_ids || !Array.isArray(product_ids) || product_ids.length === 0) {
-      throw new Error('product_ids inválido ou vazio');
-    }
-
-    // Criar cliente Supabase
+    // Create Supabase client early for rate limiting
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-  // Validação: pack_2 só pode ser comprado sozinho na área de membros (usuário autenticado)
-  if (product_ids.includes('pack_2') && !product_ids.includes('pack_1') && !authenticated_user_id) {
-    throw new Error('Pack Office Premium deve ser comprado junto com Pack Excel no checkout');
-  }
+    // Rate limiting - 5 requests per minute per IP
+    const clientIp = req.headers.get('x-forwarded-for')?.split(',')[0].trim() || 
+                     req.headers.get('x-real-ip') || 
+                     'unknown';
+    
+    const rateLimitOk = await checkRateLimit(supabase, clientIp, 'create-payment', 5);
+    
+    if (!rateLimitOk) {
+      logStep('Rate limit exceeded', { ip: clientIp });
+      return new Response(
+        JSON.stringify({ error: 'Muitas requisições. Aguarde um momento e tente novamente.' }),
+        { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }, 
+          status: 429 
+        }
+      );
+    }
+
+    // Parse and validate request
+    const rawBody = await req.json();
+    const validationResult = RequestSchema.safeParse(rawBody);
+    
+    if (!validationResult.success) {
+      const errors = validationResult.error.errors.map(e => `${e.path.join('.')}: ${e.message}`).join(', ');
+      logStep('Validation failed', { errors });
+      return new Response(
+        JSON.stringify({ error: `Dados inválidos: ${errors}` }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+      );
+    }
+
+    const {
+      product_ids,
+      payer,
+      back_urls = {
+        success: 'https://seusite.com/success',
+        failure: 'https://seusite.com/failure',
+        pending: 'https://seusite.com/pending',
+      },
+      password,
+      authenticated_user_id,
+    } = validationResult.data;
+    
+    logStep('Dados validados', { product_ids, has_payer: !!payer, authenticated: !!authenticated_user_id });
+
+    // Validação: pack_2 só pode ser comprado sozinho na área de membros (usuário autenticado)
+    if (product_ids.includes('pack_2') && !product_ids.includes('pack_1') && !authenticated_user_id) {
+      throw new Error('Pack Office Premium deve ser comprado junto com Pack Excel no checkout');
+    }
 
     // Construir items com preços SEGUROS do servidor
     const items = product_ids.map((id: string) => {
@@ -109,22 +189,6 @@ serve(async (req) => {
       logStep('Dados do usuário carregados', { email: userEmail, name: userName });
     } else if (payer && password) {
       // Fluxo de checkout público com dados completos (criar novo usuário)
-      if (!payer.email || !payer.name) {
-        throw new Error('Dados do comprador incompletos');
-      }
-
-      if (!payer.identification || !payer.identification.number) {
-        throw new Error('CPF é obrigatório');
-      }
-
-      if (!payer.phone || !payer.phone.area_code || !payer.phone.number) {
-        throw new Error('Telefone é obrigatório');
-      }
-
-      if (password.length < 6) {
-        throw new Error('Senha inválida');
-      }
-
       userEmail = payer.email;
       userName = payer.name;
       
@@ -158,7 +222,6 @@ serve(async (req) => {
       }
     } else {
       // Checkout anônimo - criar preferência sem dados de usuário
-      // O Brick vai coletar os dados depois
       logStep('Checkout anônimo - preferência sem payer');
     }
 
@@ -213,7 +276,7 @@ serve(async (req) => {
       }
     }
 
-  // Criar preferência no MercadoPago
+    // Criar preferência no MercadoPago
     const preferenceData: any = {
       items,
       back_urls: back_urls,
@@ -229,14 +292,12 @@ serve(async (req) => {
     };
 
     // Adicionar payer se fornecido
-    if (payer && payer.email) {
+    if (payer) {
       preferenceData.payer = {
         email: payer.email,
-        ...(payer.name && { name: payer.name }),
-        ...(payer.identification && {
-          identification: payer.identification,
-        }),
-        ...(payer.phone && { phone: payer.phone }),
+        name: payer.name,
+        identification: payer.identification,
+        phone: payer.phone,
       };
     }
 

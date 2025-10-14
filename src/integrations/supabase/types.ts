@@ -140,6 +140,33 @@ export type Database = {
         }
         Relationships: []
       }
+      rate_limits: {
+        Row: {
+          created_at: string | null
+          function_name: string
+          id: string
+          identifier: string
+          request_count: number
+          window_start: string
+        }
+        Insert: {
+          created_at?: string | null
+          function_name: string
+          id?: string
+          identifier: string
+          request_count?: number
+          window_start?: string
+        }
+        Update: {
+          created_at?: string | null
+          function_name?: string
+          id?: string
+          identifier?: string
+          request_count?: number
+          window_start?: string
+        }
+        Relationships: []
+      }
       site_settings: {
         Row: {
           created_at: string | null
@@ -196,6 +223,15 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      check_rate_limit: {
+        Args: {
+          _function_name: string
+          _identifier: string
+          _max_requests: number
+          _window_minutes: number
+        }
+        Returns: boolean
+      }
       expire_old_pending_purchases: {
         Args: Record<PropertyKey, never>
         Returns: undefined

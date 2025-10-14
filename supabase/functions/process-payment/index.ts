@@ -10,6 +10,28 @@ const logStep = (step: string, data?: any) => {
   console.log(`[PROCESS-PAYMENT] ${step}`, data ? JSON.stringify(data, null, 2) : '');
 };
 
+// Rate limiting helper
+async function checkRateLimit(supabase: any, identifier: string): Promise<boolean> {
+  try {
+    const { data, error } = await supabase.rpc('check_rate_limit', {
+      _identifier: identifier,
+      _function_name: 'process-payment',
+      _max_requests: 5,
+      _window_minutes: 1
+    });
+    
+    if (error) {
+      logStep('Rate limit check error', error);
+      return true; // Allow on error
+    }
+    
+    return data === true;
+  } catch (error) {
+    logStep('Rate limit exception', error);
+    return true; // Allow on error
+  }
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -18,6 +40,26 @@ serve(async (req) => {
   try {
     logStep('Iniciando process-payment');
     
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
+
+    // Rate limiting - 5 requests per minute per IP
+    const clientIp = req.headers.get('x-forwarded-for')?.split(',')[0].trim() || 
+                     req.headers.get('x-real-ip') || 
+                     'unknown';
+    
+    const rateLimitOk = await checkRateLimit(supabase, clientIp);
+    
+    if (!rateLimitOk) {
+      logStep('Rate limit exceeded', { ip: clientIp });
+      return new Response(
+        JSON.stringify({ error: 'Muitas requisições. Aguarde um momento e tente novamente.' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 429 }
+      );
+    }
+
     const body = await req.json();
     logStep('Body recebido', { hasExternalRef: !!body.external_reference });
     
@@ -67,11 +109,6 @@ serve(async (req) => {
       status: mpPayment.status,
       payment_type_id: mpPayment.payment_type_id 
     });
-    
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    );
     
     logStep('Atualizando purchase no banco', { external_reference });
     
