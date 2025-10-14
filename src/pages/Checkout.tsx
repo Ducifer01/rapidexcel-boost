@@ -1,644 +1,236 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
 import { initMercadoPago, Payment } from "@mercadopago/sdk-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { formatCPF } from "@/lib/cpf-utils";
-import { useToast } from "@/hooks/use-toast";
-import { Shield, Clock, Users, Star, Lock, Eye, CheckCircle2, Package, Gift, Loader2, CreditCard, Smartphone } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import { CheckCircle2 } from "lucide-react";
 import { PRODUCTS } from "@/lib/products";
-import { z } from "zod";
-import { cn } from "@/lib/utils";
-
-// Inicializar Mercado Pago
-const MP_PUBLIC_KEY = "APP_USR-55b50b66-c849-4bb4-9ea7-88bc3f3db1d0";
-initMercadoPago(MP_PUBLIC_KEY, { locale: "pt-BR" });
-
-const checkoutSchema = z
-  .object({
-    name: z.string().min(3, "Nome deve ter pelo menos 3 caracteres"),
-    email: z.string().email("Email inválido"),
-    confirmEmail: z.string().email("Email inválido"),
-    phone: z.string().min(14, "Telefone inválido"),
-    cpf: z.string().min(14, "CPF inválido"),
-    password: z.string().min(6, "Senha deve ter no mínimo 6 caracteres"),
-  })
-  .refine((data) => data.email === data.confirmEmail, {
-    message: "Os emails não coincidem",
-    path: ["confirmEmail"],
-  });
-
-type CheckoutForm = z.infer<typeof checkoutSchema>;
+import { toast } from "sonner";
 
 const Checkout = () => {
   const navigate = useNavigate();
-  const { toast } = useToast();
+  const [step, setStep] = useState<1 | 2>(1);
+  const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
+  const [amount, setAmount] = useState<number>(0);
+  const [preferenceId, setPreferenceId] = useState<string | null>(null);
+  const [externalReference, setExternalReference] = useState<string | null>(null);
+  const [mpReady, setMpReady] = useState(false);
+  const [loadingPref, setLoadingPref] = useState(false);
+  const [brickReady, setBrickReady] = useState(false);
 
-  // Form state
-  const [formData, setFormData] = useState<CheckoutForm>({
-    name: "",
-    email: "",
-    confirmEmail: "",
-    phone: "",
-    cpf: "",
-    password: "",
-  });
-  const [errors, setErrors] = useState<Partial<Record<keyof CheckoutForm, string>>>({});
-  const [loading, setLoading] = useState(false);
-  const [emailExists, setEmailExists] = useState(false);
-  const [checkingEmail, setCheckingEmail] = useState(false);
-
-  // Payment method selection
-  const [paymentMethod, setPaymentMethod] = useState<'credit' | 'pix' | null>(null);
-
-  // Product selection
-  const [selectedOption, setSelectedOption] = useState<"pack_1" | "both">("both");
-  const selectedProducts = selectedOption === "both" ? ["pack_1", "pack_2"] : ["pack_1"];
-  const totalAmount = selectedProducts.reduce((sum, id) => {
-    const product = PRODUCTS.find((p) => p.id === id);
-    return sum + (product?.price || 0);
-  }, 0);
-
-  // Social proof & conversion elements
-  const [buyersCount, setBuyersCount] = useState(2847);
-  const [viewCount, setViewCount] = useState(47);
-  const [timeLeft, setTimeLeft] = useState(15 * 60);
-
-  // Testimonials
-  const miniTestimonials = [
-    { name: "João Silva", role: "Empresário", text: "Economizei horas de trabalho!" },
-    { name: "Maria Costa", role: "Freelancer", text: "Melhor investimento que fiz!" },
-    { name: "Pedro Santos", role: "Estudante", text: "Perfeito para meus projetos!" },
-  ];
-
+  // Inicializar Mercado Pago
   useEffect(() => {
-    window.scrollTo(0, 0);
-  }, []);
-
-  // Timer countdown
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setTimeLeft((prev) => (prev > 0 ? prev - 1 : 0));
-    }, 1000);
-    return () => clearInterval(timer);
-  }, []);
-
-  // View counter animation
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setViewCount((prev) => prev + Math.floor(Math.random() * 3) - 1);
-    }, 5000);
-    return () => clearInterval(interval);
-  }, []);
-
-  // Buyers count animation
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setBuyersCount((prev) => prev + 1);
-    }, 30000);
-    return () => clearInterval(interval);
-  }, []);
-
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
-  };
-
-  const formatPhone = (value: string) => {
-    const numbers = value.replace(/\D/g, "");
-    if (numbers.length <= 2) return `+55 ${numbers}`;
-    if (numbers.length <= 7) return `+55 (${numbers.slice(2, 4)}) ${numbers.slice(4)}`;
-    return `+55 (${numbers.slice(2, 4)}) ${numbers.slice(4, 9)}-${numbers.slice(9, 13)}`;
-  };
-
-  const handleInputChange = (field: keyof CheckoutForm, value: string) => {
-    if (field === "cpf") {
-      value = formatCPF(value);
-    } else if (field === "phone") {
-      value = formatPhone(value);
-    }
-    setFormData((prev) => ({ ...prev, [field]: value }));
-    if (errors[field]) {
-      setErrors((prev) => ({ ...prev, [field]: undefined }));
-    }
-  };
-
-  // Check if email exists
-  useEffect(() => {
-    const checkEmail = async () => {
-      if (!formData.email || !formData.email.includes("@")) return;
-
-      setCheckingEmail(true);
+    const initMP = async () => {
       try {
-        const { data, error } = await supabase.functions.invoke("check-email-status", {
-          body: { email: formData.email },
-        });
-
-        if (!error && data) {
-          setEmailExists(data.exists);
-          if (data.exists) {
-            setErrors((prev) => ({
-              ...prev,
-              email: "Email já cadastrado. Faça login para comprar.",
-            }));
-          }
+        const { data, error } = await supabase.functions.invoke("get-public-key");
+        if (error) throw error;
+        if (data?.public_key) {
+          initMercadoPago(data.public_key, { locale: "pt-BR" });
+          setMpReady(true);
         }
       } catch (error) {
-        console.error("Erro ao verificar email:", error);
-      } finally {
-        setCheckingEmail(false);
+        console.error("Erro ao inicializar MP:", error);
+        toast.error("Erro ao carregar forma de pagamento");
       }
     };
+    initMP();
+  }, []);
 
-    const timeoutId = setTimeout(checkEmail, 500);
-    return () => clearTimeout(timeoutId);
-  }, [formData.email]);
+  // Atualizar amount quando produto selecionado
+  useEffect(() => {
+    if (selectedProductId) {
+      const product = PRODUCTS.find((p) => p.id === selectedProductId);
+      if (product) {
+        setAmount(product.price);
+      }
+    }
+  }, [selectedProductId]);
 
-  const onSubmit = async (paymentFormData: any) => {
-    setLoading(true);
+  // Continuar para o pagamento
+  const handleContinue = async () => {
+    if (!selectedProductId) return;
+
+    setLoadingPref(true);
 
     try {
-      // Validar formulário
-      const validation = checkoutSchema.safeParse(formData);
-      if (!validation.success) {
-        const newErrors: Partial<Record<keyof CheckoutForm, string>> = {};
-        validation.error.errors.forEach((err) => {
-          if (err.path[0]) {
-            newErrors[err.path[0] as keyof CheckoutForm] = err.message;
-          }
-        });
-        setErrors(newErrors);
-        toast({
-          title: "Dados inválidos",
-          description: "Por favor, corrija os erros no formulário.",
-          variant: "destructive",
-        });
-        setLoading(false);
-        return;
-      }
-
-      if (emailExists) {
-        toast({
-          title: "Email já cadastrado",
-          description: "Faça login para comprar novos produtos.",
-          variant: "destructive",
-        });
-        setLoading(false);
-        return;
-      }
-
-      // Processar pagamento
-      const { data, error } = await supabase.functions.invoke("process-payment", {
+      const { data, error } = await supabase.functions.invoke("create-payment", {
         body: {
-          formData: paymentFormData,
-          userData: {
-            name: formData.name,
-            email: formData.email,
-            cpf: formData.cpf,
-            phone: formData.phone,
-            password: formData.password,
-          },
-          selectedProducts,
+          product_ids: [selectedProductId],
         },
       });
 
       if (error) throw error;
 
-      if (!data.success) {
-        throw new Error(data.error || "Erro ao processar pagamento");
-      }
-
-      // Salvar tokens de autenticação
-      if (data.auth_tokens) {
-        localStorage.setItem("sb-auth-token", JSON.stringify(data.auth_tokens));
-      }
-
-      // Redirecionar baseado no status do pagamento
-      const payment = data.payment;
-
-      if (payment.status === "approved") {
-        toast({
-          title: "Pagamento aprovado!",
-          description: "Redirecionando para área de membros...",
-        });
-        setTimeout(() => navigate("/success"), 1000);
-      } else if (payment.status === "pending") {
-        toast({
-          title: "Pagamento pendente",
-          description: "Aguardando confirmação do pagamento...",
-        });
-        setTimeout(() => navigate("/pending"), 1000);
-      } else if (payment.status === "rejected") {
-        toast({
-          title: "Pagamento recusado",
-          description: payment.status_detail || "Tente outro método de pagamento.",
-          variant: "destructive",
-        });
+      if (data?.preference_id && data?.external_reference) {
+        setPreferenceId(data.preference_id);
+        setExternalReference(data.external_reference);
+        setStep(2);
       } else {
-        toast({
-          title: "Processando pagamento",
-          description: "Aguarde a confirmação...",
-        });
-        setTimeout(() => navigate("/pending"), 2000);
+        throw new Error("Resposta inválida do servidor");
       }
     } catch (error: any) {
-      console.error("Erro no checkout:", error);
-      toast({
-        title: "Erro no pagamento",
-        description: error.message || "Tente novamente ou entre em contato com o suporte.",
-        variant: "destructive",
-      });
+      console.error("Erro ao criar preferência:", error);
+      toast.error(error.message || "Erro ao processar pagamento");
     } finally {
-      setLoading(false);
+      setLoadingPref(false);
     }
   };
 
-  const onError = (error: any) => {
-    console.error("Payment Brick error:", error);
-    toast({
-      title: "Erro no pagamento",
-      description: "Verifique os dados e tente novamente.",
-      variant: "destructive",
+  const onSubmit = async ({ formData }: any) => {
+    return new Promise((resolve, reject) => {
+      supabase.functions
+        .invoke("process-payment", {
+          body: { ...formData, external_reference: externalReference },
+        })
+        .then(({ data, error }) => {
+          if (error) return reject(error);
+          const status = data?.payment?.status || data?.status;
+          if (status === "approved") navigate("/success");
+          else if (status === "pending" || status === "in_process") navigate("/pending");
+          else navigate("/failure");
+          resolve(data);
+        })
+        .catch(reject);
     });
   };
 
-  const initialization = {
-    amount: totalAmount,
-    payer: {
-      email: formData.email,
-    },
-  };
-
-  const customization = {
-    paymentMethods: {
-      creditCard: paymentMethod === 'credit' ? 'all' : undefined,
-      bankTransfer: paymentMethod === 'pix' ? ['pix'] : undefined,
-      maxInstallments: 2,
-    },
-    visual: {
-      style: {
-        theme: 'default' as const,
-      },
-    },
-  };
+  const canRenderBrick = mpReady && preferenceId && externalReference && amount > 0;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5">
-      {/* Header with Timer */}
-      <div className="bg-gradient-to-r from-primary via-primary-glow to-primary text-primary-foreground py-4 shadow-lg sticky top-0 z-50">
-        <div className="container mx-auto px-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Lock className="w-5 h-5" />
-              <span className="font-semibold text-sm md:text-base">🔒 Checkout 100% Seguro</span>
-            </div>
-            <div className="flex items-center gap-2 bg-white/20 px-4 py-2 rounded-full backdrop-blur-sm">
-              <Clock className="w-5 h-5" />
-              <span className="font-bold text-lg">{formatTime(timeLeft)}</span>
-            </div>
-          </div>
+      <div className="container mx-auto px-4 py-8 max-w-4xl">
+        {/* Header */}
+        <div className="text-center mb-8">
+          <h1 className="text-4xl font-bold mb-2">Finalizar Compra</h1>
+          <p className="text-muted-foreground">
+            {step === 1 && "Escolha seu produto"}
+            {step === 2 && "Complete seu pagamento"}
+          </p>
         </div>
-      </div>
 
-      <div className="container mx-auto px-4 py-8">
-        <div className="grid lg:grid-cols-3 gap-6 max-w-7xl mx-auto">
-          {/* Main Content - Form + Payment */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* View Counter */}
-            <Card className="border-primary/20 bg-gradient-to-r from-primary/5 to-transparent">
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-sm">
-                    <Eye className="w-4 h-4 text-primary" />
-                    <span className="animate-pulse">
-                      <span className="font-bold text-primary">{viewCount}</span> pessoas visualizando agora
-                    </span>
+        {/* Step 1: Seleção de Produto */}
+        {step === 1 && (
+          <div className="space-y-4">
+            {PRODUCTS.map((product) => (
+              <Card
+                key={product.id}
+                className={`p-6 cursor-pointer transition-all hover:shadow-lg ${
+                  selectedProductId === product.id
+                    ? "ring-2 ring-primary bg-primary/5"
+                    : ""
+                }`}
+                onClick={() => setSelectedProductId(product.id)}
+              >
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <h3 className="text-xl font-bold mb-2">{product.name}</h3>
+                    <p className="text-muted-foreground mb-4">{product.description}</p>
+                    <p className="text-2xl font-bold text-primary">
+                      R$ {product.price.toFixed(2)}
+                    </p>
                   </div>
-                  <Badge className="bg-gradient-to-r from-primary to-primary-glow">93% OFF</Badge>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Product Selection */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Package className="w-5 h-5" />
-                  Escolha seu Pack
-                </CardTitle>
-                <CardDescription>Selecione a melhor opção para você</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <RadioGroup value={selectedOption} onValueChange={(value: any) => setSelectedOption(value)}>
-                  <div className="space-y-4">
-                    {/* Pack 1 Only */}
-                    <label
-                      className={cn(
-                        "flex items-start space-x-3 p-4 rounded-lg border-2 cursor-pointer transition-all",
-                        selectedOption === "pack_1"
-                          ? "border-primary bg-primary/5"
-                          : "border-border hover:border-primary/50"
-                      )}
-                    >
-                      <RadioGroupItem value="pack_1" id="pack_1" />
-                      <div className="flex-1">
-                        <div className="flex items-center justify-between mb-2">
-                          <h3 className="font-semibold">Pack Excel Completo Pro</h3>
-                          <span className="text-2xl font-bold text-primary">R$ 12,99</span>
-                        </div>
-                        <p className="text-sm text-muted-foreground">13.000 planilhas Excel + 50 dashboards premium</p>
-                      </div>
-                    </label>
-
-                    {/* Both Packs - RECOMMENDED */}
-                    <label
-                      className={cn(
-                        "flex items-start space-x-3 p-4 rounded-lg border-2 cursor-pointer transition-all relative",
-                        selectedOption === "both"
-                          ? "border-primary bg-primary/5"
-                          : "border-border hover:border-primary/50"
-                      )}
-                    >
-                      <Badge className="absolute -top-3 -right-3 bg-gradient-to-r from-primary to-primary-glow">
-                        RECOMENDADO
-                      </Badge>
-                      <RadioGroupItem value="both" id="both" />
-                      <div className="flex-1">
-                        <div className="flex items-center justify-between mb-2">
-                          <h3 className="font-semibold">Pack Premium Completo</h3>
-                          <div className="text-right">
-                            <span className="text-2xl font-bold text-primary">R$ 42,97</span>
-                            <p className="text-xs text-muted-foreground line-through">R$ 1.997</p>
-                          </div>
-                        </div>
-                        <div className="space-y-1 text-sm">
-                          <p className="flex items-center gap-2">
-                            <CheckCircle2 className="w-4 h-4 text-primary" />
-                            Tudo do Pack 1 + Pack 2 Office Premium
-                          </p>
-                        </div>
-                      </div>
-                    </label>
-                  </div>
-                </RadioGroup>
-              </CardContent>
-            </Card>
-
-            {/* User Data Form */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Seus Dados</CardTitle>
-                <CardDescription>Preencha para criar sua conta e acessar os produtos</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="name">Nome Completo</Label>
-                  <Input
-                    id="name"
-                    placeholder="Seu nome completo"
-                    className="h-12 text-lg"
-                    value={formData.name}
-                    onChange={(e) => handleInputChange("name", e.target.value)}
-                    disabled={loading}
-                  />
-                  {errors.name && <p className="text-sm text-destructive">{errors.name}</p>}
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    placeholder="seu@email.com"
-                    className="h-12 text-lg"
-                    value={formData.email}
-                    onChange={(e) => handleInputChange("email", e.target.value)}
-                    disabled={loading}
-                  />
-                  {checkingEmail && <p className="text-sm text-muted-foreground">Verificando email...</p>}
-                  {errors.email && <p className="text-sm text-destructive">{errors.email}</p>}
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="confirmEmail">Confirmar Email</Label>
-                  <Input
-                    id="confirmEmail"
-                    type="email"
-                    placeholder="Confirme seu email"
-                    className="h-12 text-lg"
-                    value={formData.confirmEmail}
-                    onChange={(e) => handleInputChange("confirmEmail", e.target.value)}
-                    disabled={loading}
-                  />
-                  {errors.confirmEmail && <p className="text-sm text-destructive">{errors.confirmEmail}</p>}
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="phone">Telefone</Label>
-                  <Input
-                    id="phone"
-                    placeholder="+55 (00) 00000-0000"
-                    className="h-12 text-lg"
-                    value={formData.phone}
-                    onChange={(e) => handleInputChange("phone", e.target.value)}
-                    maxLength={20}
-                    disabled={loading}
-                  />
-                  {errors.phone && <p className="text-sm text-destructive">{errors.phone}</p>}
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="cpf">CPF</Label>
-                  <Input
-                    id="cpf"
-                    placeholder="000.000.000-00"
-                    className="h-12 text-lg"
-                    value={formData.cpf}
-                    onChange={(e) => handleInputChange("cpf", e.target.value)}
-                    maxLength={14}
-                    disabled={loading}
-                  />
-                  {errors.cpf && <p className="text-sm text-destructive">{errors.cpf}</p>}
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="password">Senha</Label>
-                  <Input
-                    id="password"
-                    type="password"
-                    placeholder="Mínimo 6 caracteres"
-                    className="h-12 text-lg"
-                    value={formData.password}
-                    onChange={(e) => handleInputChange("password", e.target.value)}
-                    disabled={loading}
-                  />
-                  {errors.password && <p className="text-sm text-destructive">{errors.password}</p>}
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Payment Method Selection */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Forma de Pagamento</CardTitle>
-                <CardDescription>Escolha como deseja pagar</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <button
-                  onClick={() => setPaymentMethod('credit')}
-                  className={cn(
-                    "w-full p-6 border-2 rounded-xl transition-all",
-                    paymentMethod === 'credit' 
-                      ? "border-primary bg-primary/5" 
-                      : "border-muted hover:border-primary/50"
+                  {selectedProductId === product.id && (
+                    <CheckCircle2 className="w-6 h-6 text-primary flex-shrink-0" />
                   )}
-                >
-                  <div className="flex items-center gap-4">
-                    <CreditCard className="w-8 h-8 text-primary" />
-                    <div className="text-left flex-1">
-                      <p className="font-bold text-lg">Cartão de Crédito</p>
-                      <p className="text-sm text-muted-foreground">
-                        Em até 2x sem juros
-                      </p>
-                    </div>
-                  </div>
-                </button>
-                
-                <button
-                  onClick={() => setPaymentMethod('pix')}
-                  className={cn(
-                    "w-full p-6 border-2 rounded-xl transition-all",
-                    paymentMethod === 'pix' 
-                      ? "border-primary bg-primary/5" 
-                      : "border-muted hover:border-primary/50"
-                  )}
-                >
-                  <div className="flex items-center gap-4">
-                    <Smartphone className="w-8 h-8 text-primary" />
-                    <div className="text-left flex-1">
-                      <p className="font-bold text-lg">PIX</p>
-                      <p className="text-sm text-muted-foreground">
-                        Aprovação instantânea
-                      </p>
-                    </div>
-                  </div>
-                </button>
-              </CardContent>
+                </div>
+              </Card>
+            ))}
+
+            <Button
+              size="lg"
+              className="w-full"
+              disabled={!selectedProductId || loadingPref}
+              onClick={handleContinue}
+            >
+              {loadingPref ? "Preparando pagamento..." : "Continuar"}
+            </Button>
+          </div>
+        )}
+
+        {/* Step 2: Payment Brick */}
+        {step === 2 && (
+          <div className="space-y-6">
+            <Card className="p-6">
+              <h2 className="text-xl font-bold mb-4">Resumo do Pedido</h2>
+              <div className="flex justify-between items-center mb-2">
+                <span>Produto:</span>
+                <span className="font-semibold">
+                  {PRODUCTS.find((p) => p.id === selectedProductId)?.name}
+                </span>
+              </div>
+              <div className="border-t pt-2 mt-2 flex justify-between items-center">
+                <span className="text-lg font-bold">Total:</span>
+                <span className="text-2xl font-bold text-primary">
+                  R$ {amount.toFixed(2)}
+                </span>
+              </div>
             </Card>
 
-            {/* Payment Brick - Only show after payment method selection */}
-            {paymentMethod && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Dados de Pagamento</CardTitle>
-                  <CardDescription>
-                    {paymentMethod === 'pix' ? 'Você receberá o QR Code para pagamento' : 'Preencha os dados do seu cartão'}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
+            <Card className="p-6">
+              <h2 className="text-xl font-bold mb-4">Pagamento</h2>
+              <p className="text-sm text-muted-foreground mb-4">
+                Escolha sua forma de pagamento e preencha os dados
+              </p>
+              
+              {!brickReady && canRenderBrick && (
+                <div className="space-y-3">
+                  <Skeleton className="h-12 w-full" />
+                  <Skeleton className="h-12 w-full" />
+                  <Skeleton className="h-12 w-full" />
+                  <Skeleton className="h-12 w-full" />
+                  <Skeleton className="h-12 w-full" />
+                </div>
+              )}
+
+              <div className={brickReady ? "" : "opacity-0 h-0 overflow-hidden"}>
+                {canRenderBrick && (
                   <Payment
-                    initialization={initialization}
-                    customization={customization}
+                    initialization={{
+                      amount,
+                      preferenceId,
+                    }}
+                    customization={{
+                      paymentMethods: {
+                        creditCard: "all",
+                        debitCard: "all",
+                        ticket: "all",
+                        bankTransfer: "all",
+                        mercadoPago: "all",
+                        maxInstallments: 1,
+                      },
+                      visual: {
+                        style: {
+                          theme: "default",
+                        },
+                      },
+                    }}
                     onSubmit={onSubmit}
-                    onError={onError}
+                    onReady={() => setBrickReady(true)}
+                    onError={(error) => {
+                      console.error("Erro no Brick:", error);
+                      toast.error("Erro ao carregar pagamento");
+                    }}
                   />
-                </CardContent>
-              </Card>
-            )}
+                )}
+              </div>
+            </Card>
+
+            <Button
+              variant="ghost"
+              className="w-full"
+              onClick={() => {
+                setStep(1);
+                setPreferenceId(null);
+                setExternalReference(null);
+                setBrickReady(false);
+              }}
+            >
+              Voltar
+            </Button>
           </div>
-
-          {/* Sidebar - Order Summary */}
-          <div className="lg:col-span-1">
-            <div className="sticky top-24 space-y-6">
-              {/* Order Summary */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-xl">Resumo do Pedido</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-3">
-                    {selectedProducts.map((productId) => {
-                      const product = PRODUCTS.find((p) => p.id === productId);
-                      return (
-                        <div key={productId} className="flex justify-between items-start">
-                          <div className="flex-1">
-                            <p className="font-medium text-sm">{product?.name}</p>
-                            <p className="text-xs text-muted-foreground">{product?.description}</p>
-                          </div>
-                          <p className="font-bold">R$ {product?.price.toFixed(2)}</p>
-                        </div>
-                      );
-                    })}
-                  </div>
-                  <Separator />
-                  <div className="flex justify-between items-center">
-                    <span className="text-lg font-bold">Total:</span>
-                    <span className="text-2xl font-bold text-primary">R$ {totalAmount.toFixed(2)}</span>
-                  </div>
-                  <p className="text-xs text-center text-muted-foreground">
-                    ou 2x de R$ {(totalAmount / 2).toFixed(2)} sem juros
-                  </p>
-                </CardContent>
-              </Card>
-
-              {/* Trust Badges */}
-              <Card className="bg-gradient-to-br from-primary/5 to-transparent">
-                <CardContent className="p-6 space-y-4">
-                  <div className="flex items-center gap-3">
-                    <Shield className="w-6 h-6 text-primary" />
-                    <div>
-                      <p className="font-bold text-sm">🛡️ Garantia de 7 dias</p>
-                      <p className="text-xs text-muted-foreground">100% do seu dinheiro de volta</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <Lock className="w-6 h-6 text-primary" />
-                    <div>
-                      <p className="font-bold text-sm">🔒 Pagamento 100% seguro</p>
-                      <p className="text-xs text-muted-foreground">Seus dados protegidos</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <Users className="w-6 h-6 text-primary" />
-                    <div>
-                      <p className="font-bold text-sm">⭐ {buyersCount.toLocaleString()} clientes</p>
-                      <p className="text-xs text-muted-foreground">Avaliação 4.9/5.0</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Mini Testimonials */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">O que dizem nossos clientes</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {miniTestimonials.map((testimonial, index) => (
-                    <div key={index} className="space-y-1">
-                      <div className="flex items-center gap-1">
-                        {[...Array(5)].map((_, i) => (
-                          <Star key={i} className="w-3 h-3 fill-yellow-400 text-yellow-400" />
-                        ))}
-                      </div>
-                      <p className="text-sm italic">"{testimonial.text}"</p>
-                      <p className="text-xs text-muted-foreground">
-                        - {testimonial.name}, {testimonial.role}
-                      </p>
-                    </div>
-                  ))}
-                </CardContent>
-              </Card>
-            </div>
-          </div>
-        </div>
+        )}
       </div>
     </div>
   );
