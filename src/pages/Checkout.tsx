@@ -12,6 +12,7 @@ import { CountdownTimer } from '@/components/checkout/CountdownTimer';
 import { ViewCounter } from '@/components/checkout/ViewCounter';
 import { TrustBadges } from '@/components/checkout/TrustBadges';
 import { MiniTestimonials } from '@/components/checkout/MiniTestimonials';
+import { UpsellModal } from '@/components/checkout/UpsellModal';
 import { formatCPF, validateCPF } from '@/lib/cpf-utils';
 import { ArrowLeft, ArrowRight, Check, Loader2, Sparkles, TrendingUp, Info } from 'lucide-react';
 
@@ -34,6 +35,7 @@ const Checkout = () => {
     phone: '',
   });
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+  const [showUpsellModal, setShowUpsellModal] = useState(false);
 
   useEffect(() => {
     if (includeUpsell && !selectedProducts.includes('pack_2')) {
@@ -90,6 +92,22 @@ const Checkout = () => {
   };
 
   const handleContinueToForm = () => {
+    // Se Pack 2 não estiver selecionado, mostrar modal de upsell
+    if (!includeUpsell) {
+      setShowUpsellModal(true);
+    } else {
+      setStep(2);
+    }
+  };
+
+  const handleUpsellAccept = () => {
+    setIncludeUpsell(true);
+    setShowUpsellModal(false);
+    setStep(2);
+  };
+
+  const handleUpsellDecline = () => {
+    setShowUpsellModal(false);
     setStep(2);
   };
 
@@ -141,7 +159,21 @@ const Checkout = () => {
       }
     } catch (error: any) {
       console.error('Erro ao criar pagamento:', error);
-      toast.error(error.message || 'Erro ao processar pagamento');
+      
+      // Melhor tratamento de erro para email duplicado
+      const errorMessage = error.message || '';
+      if (errorMessage.includes('Email já cadastrado') || errorMessage.includes('email_exists')) {
+        toast.error('Este email já está cadastrado. Por favor, faça login na área de membros para comprar novos produtos.', {
+          duration: 6000,
+          action: {
+            label: 'Ir para Login',
+            onClick: () => navigate('/login'),
+          },
+        });
+      } else {
+        toast.error(errorMessage || 'Erro ao processar pagamento. Tente novamente.');
+      }
+      
       setLoading(false);
     }
   };
@@ -151,6 +183,13 @@ const Checkout = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-muted/20 py-8 px-4">
+      <UpsellModal 
+        open={showUpsellModal}
+        onClose={() => setShowUpsellModal(false)}
+        onAccept={handleUpsellAccept}
+        onDecline={handleUpsellDecline}
+      />
+      
       <div className="container max-w-6xl mx-auto">
         {/* Header */}
         <div className="text-center mb-8">
