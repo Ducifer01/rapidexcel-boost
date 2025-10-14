@@ -58,6 +58,7 @@ const Checkout = () => {
 
   // Payment method selection
   const [paymentMethod, setPaymentMethod] = useState<'credit' | 'pix' | null>(null);
+  const [brickLoading, setBrickLoading] = useState(true);
 
   // Product selection
   const [selectedOption, setSelectedOption] = useState<"pack_1" | "both">("both");
@@ -201,8 +202,21 @@ const Checkout = () => {
   }, [formData.email]);
 
   const onSubmit = async (paymentFormData: any) => {
-    console.log('🚀 onSubmit chamado');
-    console.log('📦 Payment Form Data:', paymentFormData);
+    console.log('🚀 ============ CHECKOUT SUBMIT ============');
+    console.log('📦 Payment Form Data:', {
+      payment_method_id: paymentFormData.payment_method_id,
+      transaction_amount: paymentFormData.transaction_amount,
+      installments: paymentFormData.installments,
+      payer: paymentFormData.payer?.email,
+      token: paymentFormData.token ? '***' : undefined,
+    });
+    console.log('👤 User Data:', {
+      name: formData.name,
+      email: formData.email,
+      cpf: formData.cpf.replace(/\d(?=\d{4})/g, '*'),
+      phone: formData.phone,
+    });
+    console.log('🛒 Selected Products:', selectedProducts);
     setLoading(true);
 
     try {
@@ -304,6 +318,7 @@ const Checkout = () => {
 
   const onError = (error: any) => {
     console.error("❌ Payment Brick error:", error);
+    setBrickLoading(false);
     toast({
       title: "Erro no pagamento",
       description: "Verifique os dados e tente novamente.",
@@ -311,55 +326,69 @@ const Checkout = () => {
     });
   };
 
-  const initialization = {
-    amount: totalAmount,
-    payer: {
-      email: formData.email,
-    },
+  const onReady = () => {
+    console.log('✅ Payment Brick renderizado com sucesso');
+    setBrickLoading(false);
   };
 
-  // Preparar customization de forma tipada corretamente
-  const getCustomization = () => {
-    if (paymentMethod === 'credit') {
-      return {
-        paymentMethods: {
-          creditCard: 'all' as const,
-          maxInstallments: 2,
-        },
-        visual: {
-          style: {
-            theme: 'default' as const,
-          },
-        },
-      };
-    } else if (paymentMethod === 'pix') {
-      return {
-        paymentMethods: {
-          bankTransfer: ['pix' as const],
-        },
-        visual: {
-          style: {
-            theme: 'default' as const,
-          },
-        },
-      };
-    }
+  // Helper para preparar dados do payer com identificação CPF
+  const getPayer = () => {
+    const nameParts = formData.name.trim().split(" ");
+    const firstName = nameParts[0] || "";
+    const lastName = nameParts.slice(1).join(" ") || nameParts[0] || "";
     
-    // Default fallback (não deve acontecer)
     return {
-      paymentMethods: {
-        creditCard: 'all' as const,
-        maxInstallments: 2,
+      email: formData.email,
+      identification: {
+        type: "CPF",
+        number: formData.cpf.replace(/\D/g, ""), // Remove formatação
       },
-      visual: {
-        style: {
-          theme: 'default' as const,
-        },
-      },
+      first_name: firstName,
+      last_name: lastName,
     };
   };
 
-  const customization = getCustomization();
+  const initialization = {
+    amount: totalAmount,
+    payer: getPayer(),
+  };
+
+  // Customizations separadas para cada método
+  const pixCustomization = {
+    paymentMethods: {
+      bankTransfer: ['pix' as const],
+    },
+    visual: {
+      style: {
+        theme: 'default' as const,
+      },
+    },
+  };
+
+  const creditCustomization = {
+    paymentMethods: {
+      creditCard: 'all' as const,
+      maxInstallments: 2,
+    },
+    visual: {
+      style: {
+        theme: 'default' as const,
+      },
+    },
+  };
+
+  // Validar se pode mostrar Payment Brick
+  const canShowPaymentBrick = () => {
+    return (
+      mpInitialized &&
+      paymentMethod &&
+      formData.email &&
+      formData.name &&
+      formData.cpf.length >= 14 &&
+      !errors.cpf &&
+      !errors.email
+    );
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5">
@@ -618,24 +647,59 @@ const Checkout = () => {
               </Card>
             )}
 
-            {mpInitialized && paymentMethod && (
+            {mpInitialized && paymentMethod && !canShowPaymentBrick() && (
+              <Card>
+                <CardContent className="p-8">
+                  <div className="p-4 bg-muted rounded-lg">
+                    <p className="text-sm text-muted-foreground text-center">
+                      ℹ️ Preencha todos os campos acima (Nome, Email e CPF) para ver as opções de pagamento
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {canShowPaymentBrick() && (
               <Card>
                 <CardHeader>
-                  <CardTitle>Dados de Pagamento</CardTitle>
+                  <CardTitle>
+                    {paymentMethod === 'pix' ? '📱 Pagamento via PIX' : '💳 Dados do Cartão'}
+                  </CardTitle>
                   <CardDescription>
                     {paymentMethod === 'pix' ? 'Você receberá o QR Code para pagamento' : 'Preencha os dados do seu cartão'}
                   </CardDescription>
                 </CardHeader>
-                <CardContent>
-                  <Payment
-                    initialization={initialization}
-                    customization={customization}
-                    onSubmit={onSubmit}
-                    onError={onError}
-                    onReady={() => {
-                      console.log('✅ Payment Brick renderizado com sucesso');
-                    }}
-                  />
+                <CardContent className="relative">
+                  {brickLoading && (
+                    <div className="absolute inset-0 bg-background/80 flex items-center justify-center rounded-lg z-10">
+                      <div className="flex flex-col items-center gap-2">
+                        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                        <p className="text-sm text-muted-foreground">Carregando formulário de pagamento...</p>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {paymentMethod === 'pix' && (
+                    <Payment
+                      key={`pix-${formData.email}`}
+                      initialization={initialization}
+                      customization={pixCustomization}
+                      onSubmit={onSubmit}
+                      onError={onError}
+                      onReady={onReady}
+                    />
+                  )}
+                  
+                  {paymentMethod === 'credit' && (
+                    <Payment
+                      key={`credit-${formData.email}`}
+                      initialization={initialization}
+                      customization={creditCustomization}
+                      onSubmit={onSubmit}
+                      onError={onError}
+                      onReady={onReady}
+                    />
+                  )}
                 </CardContent>
               </Card>
             )}
