@@ -12,8 +12,8 @@ import { CountdownTimer } from '@/components/checkout/CountdownTimer';
 import { ViewCounter } from '@/components/checkout/ViewCounter';
 import { TrustBadges } from '@/components/checkout/TrustBadges';
 import { MiniTestimonials } from '@/components/checkout/MiniTestimonials';
-import { formatCPF } from '@/lib/cpf-utils';
-import { ArrowLeft, ArrowRight, Check, Loader2, Sparkles, TrendingUp } from 'lucide-react';
+import { formatCPF, validateCPF } from '@/lib/cpf-utils';
+import { ArrowLeft, ArrowRight, Check, Loader2, Sparkles, TrendingUp, Info } from 'lucide-react';
 
 const Checkout = () => {
   const navigate = useNavigate();
@@ -77,6 +77,14 @@ const Checkout = () => {
       errors.confirmPassword = 'Senhas não coincidem';
     }
 
+    if (!formData.cpf || !validateCPF(formData.cpf)) {
+      errors.cpf = 'CPF inválido';
+    }
+
+    if (!formData.phone || formData.phone.replace(/\D/g, '').length < 10) {
+      errors.phone = 'Telefone obrigatório (mínimo 10 dígitos)';
+    }
+
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
   };
@@ -97,18 +105,14 @@ const Checkout = () => {
       const payer = {
         name: formData.name,
         email: formData.email,
-        ...(formData.cpf && {
-          identification: {
-            type: 'CPF',
-            number: formData.cpf.replace(/\D/g, ''),
-          },
-        }),
-        ...(formData.phone && {
-          phone: {
-            area_code: formData.phone.replace(/\D/g, '').substring(0, 2),
-            number: formData.phone.replace(/\D/g, '').substring(2),
-          },
-        }),
+        identification: {
+          type: 'CPF',
+          number: formData.cpf.replace(/\D/g, ''),
+        },
+        phone: {
+          area_code: formData.phone.replace(/\D/g, '').substring(0, 2),
+          number: formData.phone.replace(/\D/g, '').substring(2),
+        },
       };
 
       const { data, error } = await supabase.functions.invoke('create-payment', {
@@ -266,6 +270,20 @@ const Checkout = () => {
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4">
+                    <div className="bg-primary/10 border-l-4 border-primary rounded-lg p-4">
+                      <div className="flex items-start gap-3">
+                        <Info className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
+                        <div>
+                          <p className="text-sm font-semibold text-foreground">
+                            🔐 Atenção: Credenciais de Acesso
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            O email e senha informados serão usados para acessar a área de membros
+                            e fazer o download dos produtos adquiridos.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
                     <div className="space-y-2">
                       <Label htmlFor="name">Nome Completo *</Label>
                       <Input
@@ -329,18 +347,22 @@ const Checkout = () => {
 
                     <div className="grid md:grid-cols-2 gap-4">
                       <div className="space-y-2">
-                        <Label htmlFor="cpf">CPF (opcional)</Label>
+                        <Label htmlFor="cpf">CPF *</Label>
                         <Input
                           id="cpf"
                           value={formData.cpf}
                           onChange={(e) => setFormData({ ...formData, cpf: formatCPF(e.target.value) })}
                           placeholder="000.000.000-00"
                           maxLength={14}
+                          className={formErrors.cpf ? 'border-destructive' : ''}
                         />
+                        {formErrors.cpf && (
+                          <p className="text-sm text-destructive">{formErrors.cpf}</p>
+                        )}
                       </div>
 
                       <div className="space-y-2">
-                        <Label htmlFor="phone">Telefone (opcional)</Label>
+                        <Label htmlFor="phone">Telefone *</Label>
                         <Input
                           id="phone"
                           value={formData.phone}
@@ -351,7 +373,11 @@ const Checkout = () => {
                           }}
                           placeholder="(00) 00000-0000"
                           maxLength={15}
+                          className={formErrors.phone ? 'border-destructive' : ''}
                         />
+                        {formErrors.phone && (
+                          <p className="text-sm text-destructive">{formErrors.phone}</p>
+                        )}
                       </div>
                     </div>
                   </CardContent>

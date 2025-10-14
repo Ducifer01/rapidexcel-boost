@@ -56,9 +56,9 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-  // Validação: pack_2 só pode ser comprado junto com pack_1
-  if (product_ids.includes('pack_2') && !product_ids.includes('pack_1')) {
-    throw new Error('Pack Office Premium deve ser comprado junto com Pack Excel');
+  // Validação: pack_2 só pode ser comprado sozinho na área de membros (usuário autenticado)
+  if (product_ids.includes('pack_2') && !product_ids.includes('pack_1') && !authenticated_user_id) {
+    throw new Error('Pack Office Premium deve ser comprado junto com Pack Excel no checkout');
   }
 
     // Construir items com preços SEGUROS do servidor
@@ -111,6 +111,14 @@ serve(async (req) => {
       // Fluxo de checkout público com dados completos (criar novo usuário)
       if (!payer.email || !payer.name) {
         throw new Error('Dados do comprador incompletos');
+      }
+
+      if (!payer.identification || !payer.identification.number) {
+        throw new Error('CPF é obrigatório');
+      }
+
+      if (!payer.phone || !payer.phone.area_code || !payer.phone.number) {
+        throw new Error('Telefone é obrigatório');
       }
 
       if (password.length < 6) {

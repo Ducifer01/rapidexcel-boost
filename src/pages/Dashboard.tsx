@@ -24,10 +24,30 @@ const Dashboard = () => {
   const [userEmail, setUserEmail] = useState("");
   const [downloadingProduct, setDownloadingProduct] = useState<string | null>(null);
   const [buyingProduct, setBuyingProduct] = useState<string | null>(null);
+  const [supportConfig, setSupportConfig] = useState({ 
+    tawkEnabled: false, 
+    supportEmail: '' 
+  });
 
   useEffect(() => {
     checkUser();
+    loadSupportConfig();
   }, []);
+
+  const loadSupportConfig = async () => {
+    const { data } = await supabase
+      .from('site_settings')
+      .select('key, value')
+      .in('key', ['tawk_enabled', 'support_email']);
+    
+    const config = data?.reduce((acc, item) => {
+      if (item.key === 'tawk_enabled') acc.tawkEnabled = item.value === 'true';
+      if (item.key === 'support_email') acc.supportEmail = item.value;
+      return acc;
+    }, { tawkEnabled: false, supportEmail: '' });
+    
+    setSupportConfig(config || { tawkEnabled: false, supportEmail: '' });
+  };
 
   const checkUser = async () => {
     try {
@@ -182,12 +202,20 @@ const Dashboard = () => {
           <div className="flex gap-2">
             <Button
               onClick={() => {
-                if ((window as any).Tawk_API && (window as any).Tawk_API.maximize) {
-                  (window as any).Tawk_API.maximize();
+                if (supportConfig.tawkEnabled) {
+                  if ((window as any).Tawk_API && (window as any).Tawk_API.maximize) {
+                    (window as any).Tawk_API.maximize();
+                  } else {
+                    toast({
+                      title: "Chat de suporte",
+                      description: "O chat de suporte está sendo carregado...",
+                    });
+                  }
                 } else {
                   toast({
-                    title: "Chat de suporte",
-                    description: "O chat de suporte está sendo carregado...",
+                    title: "📧 Entre em Contato",
+                    description: `Email: ${supportConfig.supportEmail}`,
+                    duration: 6000,
                   });
                 }
               }}
