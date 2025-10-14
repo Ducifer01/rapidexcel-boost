@@ -56,9 +56,8 @@ const Checkout = () => {
   const [emailExists, setEmailExists] = useState(false);
   const [checkingEmail, setCheckingEmail] = useState(false);
 
-  // Payment method selection
-  const [paymentMethod, setPaymentMethod] = useState<'credit' | 'pix' | null>(null);
-  const [brickLoading, setBrickLoading] = useState(true);
+  // Payment Brick loading state
+  const [brickReady, setBrickReady] = useState(false);
 
   // Product selection
   const [selectedOption, setSelectedOption] = useState<"pack_1" | "both">("both");
@@ -201,124 +200,134 @@ const Checkout = () => {
     return () => clearTimeout(timeoutId);
   }, [formData.email]);
 
-  const onSubmit = async (paymentFormData: any) => {
-    console.log('🚀 ============ CHECKOUT SUBMIT ============');
-    console.log('📦 Payment Form Data:', {
-      payment_method_id: paymentFormData.payment_method_id,
-      transaction_amount: paymentFormData.transaction_amount,
-      installments: paymentFormData.installments,
-      payer: paymentFormData.payer?.email,
-      token: paymentFormData.token ? '***' : undefined,
-    });
-    console.log('👤 User Data:', {
-      name: formData.name,
-      email: formData.email,
-      cpf: formData.cpf.replace(/\d(?=\d{4})/g, '*'),
-      phone: formData.phone,
-    });
-    console.log('🛒 Selected Products:', selectedProducts);
-    setLoading(true);
+  const onSubmit = async ({ selectedPaymentMethod, formData: paymentFormData }: any) => {
+    return new Promise(async (resolve, reject) => {
+      console.log('🚀 ============ CHECKOUT SUBMIT ============');
+      console.log('📦 Payment Data:', {
+        payment_method_id: paymentFormData.payment_method_id,
+        transaction_amount: paymentFormData.transaction_amount,
+        installments: paymentFormData.installments,
+        selectedPaymentMethod,
+      });
+      console.log('👤 User Data:', {
+        name: formData.name,
+        email: formData.email,
+        cpf: formData.cpf.replace(/\d(?=\d{4})/g, '*'),
+      });
+      setLoading(true);
 
-    try {
-      // Validar formulário
-      const validation = checkoutSchema.safeParse(formData);
-      if (!validation.success) {
-        const newErrors: Partial<Record<keyof CheckoutForm, string>> = {};
-        validation.error.errors.forEach((err) => {
-          if (err.path[0]) {
-            newErrors[err.path[0] as keyof CheckoutForm] = err.message;
-          }
-        });
-        setErrors(newErrors);
-        toast({
-          title: "Dados inválidos",
-          description: "Por favor, corrija os erros no formulário.",
-          variant: "destructive",
-        });
-        setLoading(false);
-        return;
-      }
+      try {
+        // Validar formulário
+        const validation = checkoutSchema.safeParse(formData);
+        if (!validation.success) {
+          const newErrors: Partial<Record<keyof CheckoutForm, string>> = {};
+          validation.error.errors.forEach((err) => {
+            if (err.path[0]) {
+              newErrors[err.path[0] as keyof CheckoutForm] = err.message;
+            }
+          });
+          setErrors(newErrors);
+          toast({
+            title: "Dados inválidos",
+            description: "Por favor, corrija os erros no formulário.",
+            variant: "destructive",
+          });
+          setLoading(false);
+          reject(new Error("Formulário inválido"));
+          return;
+        }
 
-      if (emailExists) {
-        toast({
-          title: "Email já cadastrado",
-          description: "Faça login para comprar novos produtos.",
-          variant: "destructive",
-        });
-        setLoading(false);
-        return;
-      }
+        if (emailExists) {
+          toast({
+            title: "Email já cadastrado",
+            description: "Faça login para comprar novos produtos.",
+            variant: "destructive",
+          });
+          setLoading(false);
+          reject(new Error("Email já cadastrado"));
+          return;
+        }
 
-      // Processar pagamento
-      const { data, error } = await supabase.functions.invoke("process-payment", {
-        body: {
-          formData: paymentFormData,
-          userData: {
-            name: formData.name,
-            email: formData.email,
-            cpf: formData.cpf,
-            phone: formData.phone,
-            password: formData.password,
+        // Processar pagamento
+        const { data, error } = await supabase.functions.invoke("process-payment", {
+          body: {
+            formData: paymentFormData,
+            userData: {
+              name: formData.name,
+              email: formData.email,
+              cpf: formData.cpf,
+              phone: formData.phone,
+              password: formData.password,
+            },
+            selectedProducts,
           },
-          selectedProducts,
-        },
-      });
-
-      if (error) throw error;
-
-      if (!data.success) {
-        throw new Error(data.error || "Erro ao processar pagamento");
-      }
-
-      // Salvar tokens de autenticação
-      if (data.auth_tokens) {
-        localStorage.setItem("sb-auth-token", JSON.stringify(data.auth_tokens));
-      }
-
-      // Redirecionar baseado no status do pagamento
-      const payment = data.payment;
-
-      if (payment.status === "approved") {
-        toast({
-          title: "Pagamento aprovado!",
-          description: "Redirecionando para área de membros...",
         });
-        setTimeout(() => navigate("/success"), 1000);
-      } else if (payment.status === "pending") {
+
+        if (error) {
+          setLoading(false);
+          reject(error);
+          return;
+        }
+
+        if (!data.success) {
+          setLoading(false);
+          reject(new Error(data.error || "Erro ao processar pagamento"));
+          return;
+        }
+
+        // Salvar tokens de autenticação
+        if (data.auth_tokens) {
+          localStorage.setItem("sb-auth-token", JSON.stringify(data.auth_tokens));
+        }
+
+        // Sucesso - resolver Promise
+        resolve(data);
+
+        // Redirecionar baseado no status do pagamento
+        const payment = data.payment;
+
+        if (payment.status === "approved") {
+          toast({
+            title: "Pagamento aprovado!",
+            description: "Redirecionando para área de membros...",
+          });
+          setTimeout(() => navigate("/success"), 1000);
+        } else if (payment.status === "pending") {
+          toast({
+            title: "Pagamento pendente",
+            description: "Aguardando confirmação do pagamento...",
+          });
+          setTimeout(() => navigate("/pending"), 1000);
+        } else if (payment.status === "rejected") {
+          toast({
+            title: "Pagamento recusado",
+            description: payment.status_detail || "Tente outro método de pagamento.",
+            variant: "destructive",
+          });
+        } else {
+          toast({
+            title: "Processando pagamento",
+            description: "Aguarde a confirmação...",
+          });
+          setTimeout(() => navigate("/pending"), 2000);
+        }
+      } catch (error: any) {
+        console.error("❌ ERRO no checkout:", error);
         toast({
-          title: "Pagamento pendente",
-          description: "Aguardando confirmação do pagamento...",
-        });
-        setTimeout(() => navigate("/pending"), 1000);
-      } else if (payment.status === "rejected") {
-        toast({
-          title: "Pagamento recusado",
-          description: payment.status_detail || "Tente outro método de pagamento.",
+          title: "Erro no pagamento",
+          description: error.message || "Tente novamente.",
           variant: "destructive",
         });
-      } else {
-        toast({
-          title: "Processando pagamento",
-          description: "Aguarde a confirmação...",
-        });
-        setTimeout(() => navigate("/pending"), 2000);
+        setLoading(false);
+        reject(error);
+      } finally {
+        setLoading(false);
       }
-    } catch (error: any) {
-      console.error("❌ ERRO COMPLETO no checkout:", error);
-      console.error("Stack:", error.stack);
-      toast({
-        title: "Erro no pagamento",
-        description: error.message || "Tente novamente ou entre em contato com o suporte.",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
+    });
   };
 
   const onError = (error: any) => {
     console.error("❌ Payment Brick error:", error);
-    setBrickLoading(false);
     toast({
       title: "Erro no pagamento",
       description: "Verifique os dados e tente novamente.",
@@ -327,47 +336,20 @@ const Checkout = () => {
   };
 
   const onReady = () => {
-    console.log('✅ Payment Brick renderizado com sucesso');
-    setBrickLoading(false);
+    console.log('✅ Payment Brick pronto');
+    setBrickReady(true);
   };
 
-  // Helper para preparar dados do payer com identificação CPF
-  const getPayer = () => {
-    const nameParts = formData.name.trim().split(" ");
-    const firstName = nameParts[0] || "";
-    const lastName = nameParts.slice(1).join(" ") || nameParts[0] || "";
-    
-    return {
-      email: formData.email,
-      identification: {
-        type: "CPF",
-        number: formData.cpf.replace(/\D/g, ""), // Remove formatação
-      },
-      first_name: firstName,
-      last_name: lastName,
-    };
-  };
-
+  // Initialization - apenas amount
   const initialization = {
     amount: totalAmount,
-    payer: getPayer(),
   };
 
-  // Customizations separadas para cada método
-  const pixCustomization = {
-    paymentMethods: {
-      bankTransfer: ['pix' as const],
-    },
-    visual: {
-      style: {
-        theme: 'default' as const,
-      },
-    },
-  };
-
-  const creditCustomization = {
+  // Customization - habilitar PIX e Cartão em um único Brick
+  const customization = {
     paymentMethods: {
       creditCard: 'all' as const,
+      bankTransfer: ['pix' as const],
       maxInstallments: 2,
     },
     visual: {
@@ -381,7 +363,6 @@ const Checkout = () => {
   const canShowPaymentBrick = () => {
     return (
       mpInitialized &&
-      paymentMethod &&
       formData.email &&
       formData.name &&
       formData.cpf.length >= 14 &&
@@ -586,123 +567,52 @@ const Checkout = () => {
               </CardContent>
             </Card>
 
-            {/* Payment Method Selection */}
+            {/* Payment Brick */}
             <Card>
               <CardHeader>
-                <CardTitle>Forma de Pagamento</CardTitle>
-                <CardDescription>Escolha como deseja pagar</CardDescription>
+                <CardTitle className="flex items-center gap-2">
+                  <CreditCard className="w-5 h-5" />
+                  Pagamento
+                </CardTitle>
+                <CardDescription>PIX ou Cartão de Crédito (até 2x sem juros)</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <button
-                  onClick={() => setPaymentMethod('credit')}
-                  className={cn(
-                    "w-full p-6 border-2 rounded-xl transition-all",
-                    paymentMethod === 'credit' 
-                      ? "border-primary bg-primary/5" 
-                      : "border-muted hover:border-primary/50"
-                  )}
-                >
-                  <div className="flex items-center gap-4">
-                    <CreditCard className="w-8 h-8 text-primary" />
-                    <div className="text-left flex-1">
-                      <p className="font-bold text-lg">Cartão de Crédito</p>
-                      <p className="text-sm text-muted-foreground">
-                        Em até 2x sem juros
-                      </p>
-                    </div>
-                  </div>
-                </button>
-                
-                <button
-                  onClick={() => setPaymentMethod('pix')}
-                  className={cn(
-                    "w-full p-6 border-2 rounded-xl transition-all",
-                    paymentMethod === 'pix' 
-                      ? "border-primary bg-primary/5" 
-                      : "border-muted hover:border-primary/50"
-                  )}
-                >
-                  <div className="flex items-center gap-4">
-                    <Smartphone className="w-8 h-8 text-primary" />
-                    <div className="text-left flex-1">
-                      <p className="font-bold text-lg">PIX</p>
-                      <p className="text-sm text-muted-foreground">
-                        Aprovação instantânea
-                      </p>
-                    </div>
-                  </div>
-                </button>
-              </CardContent>
-            </Card>
-
-            {/* Payment Brick - Only show after MP initialized and payment method selected */}
-            {!mpInitialized && (
-              <Card>
-                <CardContent className="p-8">
-                  <div className="flex flex-col items-center justify-center gap-4">
+              <CardContent style={{ minHeight: 300 }} className="w-full">
+                {!mpInitialized && (
+                  <div className="flex flex-col items-center justify-center gap-4 py-8">
                     <Loader2 className="w-8 h-8 animate-spin text-primary" />
                     <p className="text-muted-foreground">Carregando métodos de pagamento...</p>
                   </div>
-                </CardContent>
-              </Card>
-            )}
+                )}
 
-            {mpInitialized && paymentMethod && !canShowPaymentBrick() && (
-              <Card>
-                <CardContent className="p-8">
-                  <div className="p-4 bg-muted rounded-lg">
-                    <p className="text-sm text-muted-foreground text-center">
-                      ℹ️ Preencha todos os campos acima (Nome, Email e CPF) para ver as opções de pagamento
+                {mpInitialized && !canShowPaymentBrick() && (
+                  <div className="p-6 bg-muted rounded-lg text-center">
+                    <p className="text-sm text-muted-foreground">
+                      ℹ️ Preencha Nome, Email e CPF acima para continuar
                     </p>
                   </div>
-                </CardContent>
-              </Card>
-            )}
+                )}
 
-            {canShowPaymentBrick() && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>
-                    {paymentMethod === 'pix' ? '📱 Pagamento via PIX' : '💳 Dados do Cartão'}
-                  </CardTitle>
-                  <CardDescription>
-                    {paymentMethod === 'pix' ? 'Você receberá o QR Code para pagamento' : 'Preencha os dados do seu cartão'}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="relative">
-                  {brickLoading && (
-                    <div className="absolute inset-0 bg-background/80 flex items-center justify-center rounded-lg z-10">
-                      <div className="flex flex-col items-center gap-2">
-                        <Loader2 className="w-8 h-8 animate-spin text-primary" />
-                        <p className="text-sm text-muted-foreground">Carregando formulário de pagamento...</p>
-                      </div>
-                    </div>
-                  )}
-                  
-                  {paymentMethod === 'pix' && (
+                {mpInitialized && canShowPaymentBrick() && !brickReady && (
+                  <div className="space-y-3 animate-pulse">
+                    <div className="h-10 bg-muted rounded"></div>
+                    <div className="h-10 bg-muted rounded"></div>
+                    <div className="h-10 bg-muted rounded"></div>
+                  </div>
+                )}
+
+                {mpInitialized && canShowPaymentBrick() && (
+                  <div className={cn(!brickReady && "hidden")}>
                     <Payment
-                      key={`pix-${formData.email}`}
                       initialization={initialization}
-                      customization={pixCustomization}
+                      customization={customization}
                       onSubmit={onSubmit}
                       onError={onError}
                       onReady={onReady}
                     />
-                  )}
-                  
-                  {paymentMethod === 'credit' && (
-                    <Payment
-                      key={`credit-${formData.email}`}
-                      initialization={initialization}
-                      customization={creditCustomization}
-                      onSubmit={onSubmit}
-                      onError={onError}
-                      onReady={onReady}
-                    />
-                  )}
-                </CardContent>
-              </Card>
-            )}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </div>
 
           {/* Sidebar - Order Summary */}

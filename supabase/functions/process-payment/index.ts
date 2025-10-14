@@ -136,6 +136,8 @@ serve(async (req) => {
       payer: {
         ...formData.payer,
         email: userData.email,
+        // Mapear identification.type para entity_type do Mercado Pago
+        entity_type: formData.payer?.identification?.type === 'CNPJ' ? 'association' : 'individual',
       },
     };
 
