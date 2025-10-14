@@ -1,6 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { initMercadoPago, Payment } from "@mercadopago/sdk-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,12 +10,18 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { supabase } from "@/integrations/supabase/client";
 import { formatCPF } from "@/lib/cpf-utils";
 import { useToast } from "@/hooks/use-toast";
-import { Shield, Clock, Users, Star, Lock, Eye, CheckCircle2, Package, Gift, Loader2, CreditCard, Smartphone } from "lucide-react";
+import { Shield, Clock, Users, Star, Lock, Eye, CheckCircle2, Package, Loader2 } from "lucide-react";
 import { PRODUCTS } from "@/lib/products";
 import { z } from "zod";
 import { cn } from "@/lib/utils";
 
-// Mercado Pago será inicializado dinamicamente após buscar a chave pública
+// Declaração global do MercadoPago
+declare global {
+  interface Window {
+    MercadoPago: any;
+    paymentBrickController: any;
+  }
+}
 
 const checkoutSchema = z
   .object({
@@ -38,9 +43,10 @@ const Checkout = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  // Mercado Pago initialization
+  // Mercado Pago SDK loading
+  const [mpLoaded, setMpLoaded] = useState(false);
   const [mpPublicKey, setMpPublicKey] = useState<string | null>(null);
-  const [mpInitialized, setMpInitialized] = useState(false);
+  const brickContainerRef = useRef<HTMLDivElement>(null);
 
   // Form state
   const [formData, setFormData] = useState<CheckoutForm>({
@@ -52,12 +58,8 @@ const Checkout = () => {
     confirmPassword: "",
   });
   const [errors, setErrors] = useState<Partial<Record<keyof CheckoutForm, string>>>({});
-  const [loading, setLoading] = useState(false);
   const [emailExists, setEmailExists] = useState(false);
   const [checkingEmail, setCheckingEmail] = useState(false);
-
-  // Payment Brick loading state
-  const [brickReady, setBrickReady] = useState(false);
 
   // Product selection
   const [selectedOption, setSelectedOption] = useState<"pack_1" | "both">("both");
@@ -83,14 +85,15 @@ const Checkout = () => {
     window.scrollTo(0, 0);
   }, []);
 
-  // Fetch Mercado Pago Public Key
+  // Load Mercado Pago SDK
   useEffect(() => {
-    const fetchPublicKey = async () => {
+    const loadMercadoPagoSDK = async () => {
       try {
-        console.log('🔑 Buscando chave pública do Mercado Pago...');
+        // Fetch public key
+        console.log('🔑 Buscando chave pública...');
         const { data, error } = await supabase.functions.invoke('get-public-key');
         
-        if (error) {
+        if (error || !data?.public_key) {
           console.error('❌ Erro ao buscar chave pública:', error);
           toast({
             title: "Erro ao carregar pagamento",
@@ -99,25 +102,38 @@ const Checkout = () => {
           });
           return;
         }
-        
-        if (data?.public_key) {
-          console.log('✅ Chave pública carregada do Supabase');
-          setMpPublicKey(data.public_key);
-          initMercadoPago(data.public_key, { locale: "pt-BR" });
-          setMpInitialized(true);
-          console.log('✅ Mercado Pago inicializado com sucesso');
+
+        console.log('✅ Chave pública carregada');
+        setMpPublicKey(data.public_key);
+
+        // Load SDK script
+        if (!document.getElementById('mercadopago-sdk')) {
+          const script = document.createElement('script');
+          script.id = 'mercadopago-sdk';
+          script.src = 'https://sdk.mercadopago.com/js/v2';
+          script.async = true;
+          script.onload = () => {
+            console.log('✅ SDK Mercado Pago carregado');
+            setMpLoaded(true);
+          };
+          script.onerror = () => {
+            console.error('❌ Erro ao carregar SDK');
+            toast({
+              title: "Erro ao carregar SDK de pagamento",
+              description: "Recarregue a página.",
+              variant: "destructive",
+            });
+          };
+          document.body.appendChild(script);
+        } else {
+          setMpLoaded(true);
         }
       } catch (error) {
-        console.error('❌ Erro fatal ao buscar public key:', error);
-        toast({
-          title: "Erro ao inicializar pagamento",
-          description: "Recarregue a página e tente novamente.",
-          variant: "destructive",
-        });
+        console.error('❌ Erro fatal:', error);
       }
     };
 
-    fetchPublicKey();
+    loadMercadoPagoSDK();
   }, [toast]);
 
   // Timer countdown
@@ -200,176 +216,202 @@ const Checkout = () => {
     return () => clearTimeout(timeoutId);
   }, [formData.email]);
 
-  const onSubmit = async ({ selectedPaymentMethod, formData: paymentFormData }: any) => {
-    return new Promise(async (resolve, reject) => {
-      console.log('🚀 ============ CHECKOUT SUBMIT ============');
-      console.log('📦 Payment Data:', {
-        payment_method_id: paymentFormData.payment_method_id,
-        transaction_amount: paymentFormData.transaction_amount,
-        installments: paymentFormData.installments,
-        selectedPaymentMethod,
-      });
-      console.log('👤 User Data:', {
-        name: formData.name,
-        email: formData.email,
-        cpf: formData.cpf.replace(/\d(?=\d{4})/g, '*'),
-      });
-      setLoading(true);
+  // Render Payment Brick quando SDK e dados estiverem prontos
+  useEffect(() => {
+    if (!mpLoaded || !mpPublicKey || !brickContainerRef.current) return;
+    if (!formData.email || !formData.name || formData.cpf.length < 14) return;
+    if (errors.email || errors.cpf || emailExists) return;
 
+    // Destruir brick anterior se existir
+    if (window.paymentBrickController) {
+      window.paymentBrickController.unmount();
+    }
+
+    const renderPaymentBrick = async () => {
       try {
-        // Validar formulário
-        const validation = checkoutSchema.safeParse(formData);
-        if (!validation.success) {
-          const newErrors: Partial<Record<keyof CheckoutForm, string>> = {};
-          validation.error.errors.forEach((err) => {
-            if (err.path[0]) {
-              newErrors[err.path[0] as keyof CheckoutForm] = err.message;
-            }
-          });
-          setErrors(newErrors);
-          toast({
-            title: "Dados inválidos",
-            description: "Por favor, corrija os erros no formulário.",
-            variant: "destructive",
-          });
-          setLoading(false);
-          reject(new Error("Formulário inválido"));
-          return;
-        }
-
-        if (emailExists) {
-          toast({
-            title: "Email já cadastrado",
-            description: "Faça login para comprar novos produtos.",
-            variant: "destructive",
-          });
-          setLoading(false);
-          reject(new Error("Email já cadastrado"));
-          return;
-        }
-
-        // Processar pagamento
-        const { data, error } = await supabase.functions.invoke("process-payment", {
-          body: {
-            formData: paymentFormData,
-            userData: {
-              name: formData.name,
-              email: formData.email,
-              cpf: formData.cpf,
-              phone: formData.phone,
-              password: formData.password,
-            },
-            selectedProducts,
-          },
+        console.log('🎨 Renderizando Payment Brick...');
+        
+        const mp = new window.MercadoPago(mpPublicKey, {
+          locale: 'pt-BR'
         });
 
-        if (error) {
-          setLoading(false);
-          reject(error);
-          return;
-        }
+        const bricksBuilder = mp.bricks();
 
-        if (!data.success) {
-          setLoading(false);
-          reject(new Error(data.error || "Erro ao processar pagamento"));
-          return;
-        }
+        const settings = {
+          initialization: {
+            amount: totalAmount,
+            payer: {
+              firstName: formData.name.split(' ')[0] || '',
+              lastName: formData.name.split(' ').slice(1).join(' ') || '',
+              email: formData.email,
+            },
+          },
+          customization: {
+            visual: {
+              style: {
+                theme: 'default',
+              },
+            },
+            paymentMethods: {
+              creditCard: 'all',
+              bankTransfer: 'all',
+              maxInstallments: 2,
+            },
+          },
+          callbacks: {
+            onReady: () => {
+              console.log('✅ Payment Brick pronto');
+            },
+            onSubmit: ({ selectedPaymentMethod, formData: paymentFormData }: any) => {
+              console.log('🚀 Processando pagamento...');
+              console.log('📦 Método:', selectedPaymentMethod);
+              
+              return new Promise((resolve, reject) => {
+                // Validar formulário
+                const validation = checkoutSchema.safeParse(formData);
+                if (!validation.success) {
+                  const newErrors: Partial<Record<keyof CheckoutForm, string>> = {};
+                  validation.error.errors.forEach((err) => {
+                    if (err.path[0]) {
+                      newErrors[err.path[0] as keyof CheckoutForm] = err.message;
+                    }
+                  });
+                  setErrors(newErrors);
+                  toast({
+                    title: "Dados inválidos",
+                    description: "Corrija os erros no formulário.",
+                    variant: "destructive",
+                  });
+                  reject(new Error("Formulário inválido"));
+                  return;
+                }
 
-        // Salvar tokens de autenticação
-        if (data.auth_tokens) {
-          localStorage.setItem("sb-auth-token", JSON.stringify(data.auth_tokens));
-        }
+                if (emailExists) {
+                  toast({
+                    title: "Email já cadastrado",
+                    description: "Faça login para comprar.",
+                    variant: "destructive",
+                  });
+                  reject(new Error("Email já cadastrado"));
+                  return;
+                }
 
-        // Sucesso - resolver Promise
-        resolve(data);
+                // Processar pagamento
+                supabase.functions.invoke("process-payment", {
+                  body: {
+                    formData: paymentFormData,
+                    userData: {
+                      name: formData.name,
+                      email: formData.email,
+                      cpf: formData.cpf,
+                      phone: formData.phone,
+                      password: formData.password,
+                    },
+                    selectedProducts,
+                  },
+                })
+                .then(({ data, error }) => {
+                  if (error) {
+                    console.error('❌ Erro:', error);
+                    toast({
+                      title: "Erro no pagamento",
+                      description: error.message || "Tente novamente.",
+                      variant: "destructive",
+                    });
+                    reject(error);
+                    return;
+                  }
 
-        // Redirecionar baseado no status do pagamento
-        const payment = data.payment;
+                  if (!data.success) {
+                    toast({
+                      title: "Erro no pagamento",
+                      description: data.error || "Tente novamente.",
+                      variant: "destructive",
+                    });
+                    reject(new Error(data.error));
+                    return;
+                  }
 
-        if (payment.status === "approved") {
-          toast({
-            title: "Pagamento aprovado!",
-            description: "Redirecionando para área de membros...",
-          });
-          setTimeout(() => navigate("/success"), 1000);
-        } else if (payment.status === "pending") {
-          toast({
-            title: "Pagamento pendente",
-            description: "Aguardando confirmação do pagamento...",
-          });
-          setTimeout(() => navigate("/pending"), 1000);
-        } else if (payment.status === "rejected") {
-          toast({
-            title: "Pagamento recusado",
-            description: payment.status_detail || "Tente outro método de pagamento.",
-            variant: "destructive",
-          });
-        } else {
-          toast({
-            title: "Processando pagamento",
-            description: "Aguarde a confirmação...",
-          });
-          setTimeout(() => navigate("/pending"), 2000);
-        }
-      } catch (error: any) {
-        console.error("❌ ERRO no checkout:", error);
+                  console.log('✅ Pagamento processado:', data.payment.status);
+
+                  // Salvar tokens
+                  if (data.auth_tokens) {
+                    localStorage.setItem("sb-auth-token", JSON.stringify(data.auth_tokens));
+                  }
+
+                  resolve(data);
+
+                  // Redirecionar
+                  const payment = data.payment;
+                  if (payment.status === "approved") {
+                    toast({
+                      title: "Pagamento aprovado!",
+                      description: "Redirecionando...",
+                    });
+                    setTimeout(() => navigate("/success"), 1000);
+                  } else if (payment.status === "pending") {
+                    toast({
+                      title: "Pagamento pendente",
+                      description: "Aguardando confirmação...",
+                    });
+                    setTimeout(() => navigate("/pending"), 1000);
+                  } else if (payment.status === "rejected") {
+                    toast({
+                      title: "Pagamento recusado",
+                      description: payment.status_detail || "Tente outro método.",
+                      variant: "destructive",
+                    });
+                  } else {
+                    setTimeout(() => navigate("/pending"), 2000);
+                  }
+                })
+                .catch((error) => {
+                  console.error('❌ Erro fatal:', error);
+                  toast({
+                    title: "Erro no pagamento",
+                    description: "Tente novamente.",
+                    variant: "destructive",
+                  });
+                  reject(error);
+                });
+              });
+            },
+            onError: (error: any) => {
+              console.error('❌ Payment Brick error:', error);
+              toast({
+                title: "Erro no pagamento",
+                description: "Verifique os dados.",
+                variant: "destructive",
+              });
+            },
+          },
+        };
+
+        window.paymentBrickController = await bricksBuilder.create(
+          'payment',
+          'paymentBrick_container',
+          settings
+        );
+
+        console.log('✅ Payment Brick renderizado');
+      } catch (error) {
+        console.error('❌ Erro ao renderizar brick:', error);
         toast({
-          title: "Erro no pagamento",
-          description: error.message || "Tente novamente.",
+          title: "Erro ao carregar pagamento",
+          description: "Recarregue a página.",
           variant: "destructive",
         });
-        setLoading(false);
-        reject(error);
-      } finally {
-        setLoading(false);
       }
-    });
-  };
+    };
 
-  const onError = (error: any) => {
-    console.error("❌ Payment Brick error:", error);
-    toast({
-      title: "Erro no pagamento",
-      description: "Verifique os dados e tente novamente.",
-      variant: "destructive",
-    });
-  };
+    renderPaymentBrick();
 
-  const onReady = () => {
-    console.log('✅ Payment Brick pronto');
-    setBrickReady(true);
-  };
-
-  // Initialization - apenas amount
-  const initialization = {
-    amount: totalAmount,
-  };
-
-  // Customization - habilitar PIX e Cartão em um único Brick
-  const customization = {
-    paymentMethods: {
-      creditCard: 'all' as const,
-      bankTransfer: ['pix' as const],
-      maxInstallments: 2,
-    },
-    visual: {
-      style: {
-        theme: 'default' as const,
-      },
-    },
-  };
-
-  // Validar se pode mostrar Payment Brick
-  const canShowPaymentBrick = () => {
-    return (
-      mpInitialized &&
-      formData.email &&
-      formData.name &&
-      formData.cpf.length >= 14 &&
-      !errors.cpf &&
-      !errors.email
-    );
-  };
+    return () => {
+      if (window.paymentBrickController) {
+        window.paymentBrickController.unmount();
+      }
+    };
+  }, [mpLoaded, mpPublicKey, formData.email, formData.name, formData.cpf, totalAmount, errors.email, errors.cpf, emailExists, selectedProducts, navigate, toast]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5">
@@ -488,7 +530,6 @@ const Checkout = () => {
                     className="h-12 text-lg"
                     value={formData.name}
                     onChange={(e) => handleInputChange("name", e.target.value)}
-                    disabled={loading}
                   />
                   {errors.name && <p className="text-sm text-destructive">{errors.name}</p>}
                 </div>
@@ -502,12 +543,10 @@ const Checkout = () => {
                     className="h-12 text-lg"
                     value={formData.email}
                     onChange={(e) => handleInputChange("email", e.target.value)}
-                    disabled={loading}
                   />
                   {checkingEmail && <p className="text-sm text-muted-foreground">Verificando email...</p>}
                   {errors.email && <p className="text-sm text-destructive">{errors.email}</p>}
                 </div>
-
 
                 <div className="space-y-2">
                   <Label htmlFor="phone">Telefone</Label>
@@ -518,7 +557,6 @@ const Checkout = () => {
                     value={formData.phone}
                     onChange={(e) => handleInputChange("phone", e.target.value)}
                     maxLength={20}
-                    disabled={loading}
                   />
                   {errors.phone && <p className="text-sm text-destructive">{errors.phone}</p>}
                 </div>
@@ -532,7 +570,6 @@ const Checkout = () => {
                     value={formData.cpf}
                     onChange={(e) => handleInputChange("cpf", e.target.value)}
                     maxLength={14}
-                    disabled={loading}
                   />
                   {errors.cpf && <p className="text-sm text-destructive">{errors.cpf}</p>}
                 </div>
@@ -546,7 +583,6 @@ const Checkout = () => {
                     className="h-12 text-lg"
                     value={formData.password}
                     onChange={(e) => handleInputChange("password", e.target.value)}
-                    disabled={loading}
                   />
                   {errors.password && <p className="text-sm text-destructive">{errors.password}</p>}
                 </div>
@@ -560,56 +596,48 @@ const Checkout = () => {
                     className="h-12 text-lg"
                     value={formData.confirmPassword}
                     onChange={(e) => handleInputChange("confirmPassword", e.target.value)}
-                    disabled={loading}
                   />
                   {errors.confirmPassword && <p className="text-sm text-destructive">{errors.confirmPassword}</p>}
                 </div>
               </CardContent>
             </Card>
 
-            {/* Payment Brick */}
+            {/* Payment Section */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <CreditCard className="w-5 h-5" />
-                  Pagamento
+                  <Lock className="w-5 h-5 text-primary" />
+                  Pagamento Seguro
                 </CardTitle>
-                <CardDescription>PIX ou Cartão de Crédito (até 2x sem juros)</CardDescription>
+                <CardDescription>
+                  PIX ou Cartão de Crédito (até 2x sem juros)
+                </CardDescription>
               </CardHeader>
-              <CardContent style={{ minHeight: 300 }} className="w-full">
-                {!mpInitialized && (
-                  <div className="flex flex-col items-center justify-center gap-4 py-8">
-                    <Loader2 className="w-8 h-8 animate-spin text-primary" />
-                    <p className="text-muted-foreground">Carregando métodos de pagamento...</p>
+              <CardContent>
+                {!mpLoaded || !mpPublicKey ? (
+                  <div className="py-12 text-center space-y-4">
+                    <Loader2 className="w-8 h-8 animate-spin mx-auto text-primary" />
+                    <p className="text-sm text-muted-foreground">Carregando meio de pagamento...</p>
                   </div>
-                )}
-
-                {mpInitialized && !canShowPaymentBrick() && (
-                  <div className="p-6 bg-muted rounded-lg text-center">
-                    <p className="text-sm text-muted-foreground">
-                      ℹ️ Preencha Nome, Email e CPF acima para continuar
-                    </p>
+                ) : !formData.email || !formData.name || formData.cpf.length < 14 ? (
+                  <div className="py-12 text-center space-y-4">
+                    <Lock className="w-16 h-16 mx-auto text-muted-foreground opacity-50" />
+                    <div>
+                      <p className="font-medium text-muted-foreground">
+                        Complete seus dados acima
+                      </p>
+                      <p className="text-sm text-muted-foreground mt-2">
+                        Nome, Email e CPF são obrigatórios
+                      </p>
+                    </div>
                   </div>
-                )}
-
-                {mpInitialized && canShowPaymentBrick() && !brickReady && (
-                  <div className="space-y-3 animate-pulse">
-                    <div className="h-10 bg-muted rounded"></div>
-                    <div className="h-10 bg-muted rounded"></div>
-                    <div className="h-10 bg-muted rounded"></div>
-                  </div>
-                )}
-
-                {mpInitialized && canShowPaymentBrick() && (
-                  <div className={cn(!brickReady && "hidden")}>
-                    <Payment
-                      initialization={initialization}
-                      customization={customization}
-                      onSubmit={onSubmit}
-                      onError={onError}
-                      onReady={onReady}
-                    />
-                  </div>
+                ) : (
+                  <div 
+                    id="paymentBrick_container" 
+                    ref={brickContainerRef}
+                    style={{ minHeight: 300 }}
+                    className="w-full"
+                  />
                 )}
               </CardContent>
             </Card>
@@ -662,15 +690,15 @@ const Checkout = () => {
                   <div className="flex items-center gap-3">
                     <Lock className="w-6 h-6 text-primary" />
                     <div>
-                      <p className="font-bold text-sm">🔒 Pagamento 100% seguro</p>
+                      <p className="font-bold text-sm">🔒 Pagamento Seguro</p>
                       <p className="text-xs text-muted-foreground">Seus dados protegidos</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
                     <Users className="w-6 h-6 text-primary" />
                     <div>
-                      <p className="font-bold text-sm">⭐ {buyersCount.toLocaleString()} clientes</p>
-                      <p className="text-xs text-muted-foreground">Avaliação 4.9/5.0</p>
+                      <p className="font-bold text-sm">👥 {buyersCount.toLocaleString('pt-BR')}+ compradores</p>
+                      <p className="text-xs text-muted-foreground">Compraram este pack</p>
                     </div>
                   </div>
                 </CardContent>
@@ -679,20 +707,17 @@ const Checkout = () => {
               {/* Mini Testimonials */}
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-lg">O que dizem nossos clientes</CardTitle>
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <Star className="w-5 h-5 text-primary fill-primary" />
+                    Avaliações Recentes
+                  </CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                  {miniTestimonials.map((testimonial, index) => (
-                    <div key={index} className="space-y-1">
-                      <div className="flex items-center gap-1">
-                        {[...Array(5)].map((_, i) => (
-                          <Star key={i} className="w-3 h-3 fill-yellow-400 text-yellow-400" />
-                        ))}
-                      </div>
-                      <p className="text-sm italic">"{testimonial.text}"</p>
-                      <p className="text-xs text-muted-foreground">
-                        - {testimonial.name}, {testimonial.role}
-                      </p>
+                <CardContent className="space-y-3">
+                  {miniTestimonials.map((testimonial, idx) => (
+                    <div key={idx} className="text-sm">
+                      <p className="font-medium">{testimonial.name}</p>
+                      <p className="text-xs text-muted-foreground">{testimonial.role}</p>
+                      <p className="text-xs italic mt-1">"{testimonial.text}"</p>
                     </div>
                   ))}
                 </CardContent>

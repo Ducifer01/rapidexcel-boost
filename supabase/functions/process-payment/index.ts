@@ -128,7 +128,7 @@ serve(async (req) => {
       throw new Error('Token do Mercado Pago não configurado');
     }
 
-    // Preparar body do pagamento
+    // Preparar body do pagamento seguindo documentação MP
     const paymentBody = {
       ...formData,
       transaction_amount: totalAmount,
@@ -136,8 +136,15 @@ serve(async (req) => {
       payer: {
         ...formData.payer,
         email: userData.email,
-        // Mapear identification.type para entity_type do Mercado Pago
-        entity_type: formData.payer?.identification?.type === 'CNPJ' ? 'association' : 'individual',
+        // Corrigir entity_type baseado no tipo de identificação
+        entity_type: (() => {
+          const idType = formData.payer?.identification?.type;
+          if (idType === 'CNPJ') return 'association';
+          if (idType === 'CPF') return 'individual';
+          // Fallback: se não vier tipo, tentar inferir pelo tamanho
+          const idNumber = formData.payer?.identification?.number || '';
+          return idNumber.replace(/\D/g, '').length > 11 ? 'association' : 'individual';
+        })(),
       },
     };
 
