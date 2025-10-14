@@ -80,13 +80,13 @@ const Offers = () => {
       <div className="container max-w-7xl mx-auto">
         <div className="text-center mb-12 md:mb-16 space-y-4">
           <Badge className="mb-4 bg-secondary text-secondary-foreground px-4 py-2 text-sm">🔥 OFERTA LIMITADA</Badge>
-          <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold">
+          <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold">
             Escolha o Pacote Perfeito{" "}
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-secondary to-secondary-glow">
               Para Você!
             </span>
           </h2>
-          <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto">
+          <p className="text-base md:text-lg text-muted-foreground max-w-2xl mx-auto">
             Investimento único para acesso vitalício - Sem mensalidades
           </p>
         </div>
@@ -103,25 +103,25 @@ const Offers = () => {
               </div>
 
               {/* Badge MAIS VENDIDO - Vermelho Grande */}
-              <Badge className="mb-6 mx-auto bg-gradient-to-r from-red-600 to-red-500 text-white w-fit text-base px-6 py-3 animate-pulse shadow-lg">
+              <Badge className="mb-4 mx-auto bg-gradient-to-r from-red-600 to-red-500 text-white w-fit text-sm sm:text-base px-4 sm:px-6 py-2 sm:py-3 animate-pulse shadow-lg">
                 PLANO PREMIUM (MAIS VENDIDO)
               </Badge>
 
               {/* Mockup do Produto */}
-              <div className="relative w-full h-48 mb-6 bg-gradient-to-br from-green-500/10 to-green-600/10 rounded-xl flex items-center justify-center border-2 border-green-200 dark:border-green-800">
-                <FileSpreadsheet className="w-32 h-32 text-green-500 opacity-60" />
+              <div className="relative w-full h-32 sm:h-40 mb-4 bg-gradient-to-br from-green-500/10 to-green-600/10 rounded-xl flex items-center justify-center border-2 border-green-200 dark:border-green-800">
+                <FileSpreadsheet className="w-20 h-20 sm:w-28 sm:h-28 text-green-500 opacity-60" />
               </div>
 
-              <div className="flex items-center justify-center gap-3 mb-3">
-                <h3 className="text-2xl md:text-3xl font-bold">Pack Excel Completo Pro</h3>
+              <div className="flex items-center justify-center gap-3 mb-2">
+                <h3 className="text-xl sm:text-2xl md:text-3xl font-bold">Pack Excel Completo Pro</h3>
               </div>
-              <p className="text-muted-foreground mb-6">13.000 Planilhas Excel Profissionais</p>
-              <div className="space-y-2">
-                <p className="text-sm text-muted-foreground line-through">De R$ 1.997,00</p>
-                <p className="text-5xl md:text-6xl font-bold" style={{ color: "#22C55E" }}>
+              <p className="text-sm sm:text-base text-muted-foreground mb-4">13.000 Planilhas Excel Profissionais</p>
+              <div className="space-y-1">
+                <p className="text-xs sm:text-sm text-muted-foreground line-through">De R$ 1.997,00</p>
+                <p className="text-4xl sm:text-5xl md:text-6xl font-bold" style={{ color: "#22C55E" }}>
                   R$ 12,99
                 </p>
-                <p className="text-sm text-muted-foreground">
+                <p className="text-xs sm:text-sm text-muted-foreground">
                   pagamento único •{" "}
                   <span className="font-bold" style={{ color: "#22C55E" }}>
                     93% OFF
@@ -129,66 +129,44 @@ const Offers = () => {
                 </p>
               </div>
             </CardHeader>
-            <CardContent className="space-y-6 pb-8">
+            <CardContent className="space-y-4 pb-6">
               {/* Benefícios Principais - Checkmarks Verdes */}
-              <div className="space-y-4">
-                <div className="flex items-start gap-3">
-                  <Check className="w-6 h-6 flex-shrink-0 mt-0.5" style={{ color: "#22C55E" }} />
-                  <span className="text-sm md:text-base">
+              <div className="space-y-3">
+                <div className="flex items-start gap-2">
+                  <Check className="w-5 h-5 sm:w-6 sm:h-6 flex-shrink-0 mt-0.5" style={{ color: "#22C55E" }} />
+                  <span className="text-xs sm:text-sm md:text-base">
                     <strong className="font-bold">13.000+ Planilhas Excel</strong> profissionais editáveis
                   </span>
                 </div>
-                <div className="flex items-start gap-3">
-                  <Check className="w-6 h-6 flex-shrink-0 mt-0.5" style={{ color: "#22C55E" }} />
-                  <span className="text-sm md:text-base">
+                <div className="flex items-start gap-2">
+                  <Check className="w-5 h-5 sm:w-6 sm:h-6 flex-shrink-0 mt-0.5" style={{ color: "#22C55E" }} />
+                  <span className="text-xs sm:text-sm md:text-base">
                     <strong className="font-bold">+50 Dashboards</strong> extras premium
                   </span>
                 </div>
-                <div className="flex items-start gap-3">
-                  <Check className="w-6 h-6 flex-shrink-0 mt-0.5" style={{ color: "#22C55E" }} />
-                  <span className="text-sm md:text-base">
+                <div className="flex items-start gap-2">
+                  <Check className="w-5 h-5 sm:w-6 sm:h-6 flex-shrink-0 mt-0.5" style={{ color: "#22C55E" }} />
+                  <span className="text-xs sm:text-sm md:text-base">
                     Todas as categorias: <strong>Finanças, RH, Vendas, Engenharia, Logística, Pessoal</strong> e mais
                   </span>
                 </div>
-                <div className="flex items-start gap-3">
-                  <Check className="w-6 h-6 flex-shrink-0 mt-0.5" style={{ color: "#22C55E" }} />
-                  <span className="text-sm md:text-base">Acesso imediato após pagamento</span>
+                <div className="flex items-start gap-2">
+                  <Check className="w-5 h-5 sm:w-6 sm:h-6 flex-shrink-0 mt-0.5" style={{ color: "#22C55E" }} />
+                  <span className="text-xs sm:text-sm md:text-base">Acesso imediato após pagamento</span>
                 </div>
-                <div className="flex items-start gap-3">
-                  <Check className="w-6 h-6 flex-shrink-0 mt-0.5" style={{ color: "#22C55E" }} />
-                  <span className="text-sm md:text-base">Acesso vitalício sem renovação</span>
+                <div className="flex items-start gap-2">
+                  <Check className="w-5 h-5 sm:w-6 sm:h-6 flex-shrink-0 mt-0.5" style={{ color: "#22C55E" }} />
+                  <span className="text-xs sm:text-sm md:text-base">Acesso vitalício sem renovação</span>
                 </div>
-                <div className="flex items-start gap-3">
-                  <Check className="w-6 h-6 flex-shrink-0 mt-0.5" style={{ color: "#22C55E" }} />
-                  <span className="text-sm md:text-base">Garantia de 7 dias</span>
-                </div>
-              </div>
-
-              {/* Seção de Bônus Separada */}
-              <div className="border-t-2 border-muted pt-6 mt-6">
-                <h4 className="text-2xl font-black mb-6 text-center" style={{ color: "#EF4444" }}>
-                  10 BÔNUS EXCLUSIVOS
-                </h4>
-                <div className="space-y-3">
-                  {bonusList.map((bonus, index) => (
-                    <div key={index} className="flex items-start gap-3">
-                      <div className="flex-shrink-0 mt-0.5" style={{ color: "#3B82F6" }}>
-                        {bonus.icon}
-                      </div>
-                      <span className="text-sm">
-                        <strong className="font-bold" style={{ color: "#3B82F6" }}>
-                          {bonus.title}
-                        </strong>{" "}
-                        {bonus.description}
-                      </span>
-                    </div>
-                  ))}
+                <div className="flex items-start gap-2">
+                  <Check className="w-5 h-5 sm:w-6 sm:h-6 flex-shrink-0 mt-0.5" style={{ color: "#22C55E" }} />
+                  <span className="text-xs sm:text-sm md:text-base">Garantia de 7 dias</span>
                 </div>
               </div>
 
               <Button
                 size="lg"
-                className="w-full text-lg py-6 shadow-lg hover:shadow-xl transition-all duration-300"
+                className="w-full text-base sm:text-lg py-5 sm:py-6 shadow-lg hover:shadow-xl transition-all duration-300"
                 style={{
                   background: "linear-gradient(135deg, #22C55E, #16A34A)",
                   color: "white",
@@ -197,7 +175,7 @@ const Offers = () => {
               >
                 Começar Agora - R$ 12,99
               </Button>
-              <p className="text-xs text-center text-muted-foreground">⚡ Economize mais de 200 horas de trabalho</p>
+              <p className="text-[10px] sm:text-xs text-center text-muted-foreground">⚡ Economize mais de 200 horas de trabalho</p>
             </CardContent>
           </Card>
 
@@ -212,29 +190,29 @@ const Offers = () => {
               </div>
 
               {/* Badge PACOTE PREMIUM - Vermelho Grande */}
-              <Badge className="mb-6 mx-auto bg-gradient-to-r from-red-600 to-red-500 text-white w-fit text-base px-6 py-3 animate-pulse shadow-lg">
-                <Gift className="w-5 h-5 mr-2" />
+              <Badge className="mb-4 mx-auto bg-gradient-to-r from-red-600 to-red-500 text-white w-fit text-sm sm:text-base px-4 sm:px-6 py-2 sm:py-3 animate-pulse shadow-lg">
+                <Gift className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
                 PACOTE PREMIUM COMPLETO
               </Badge>
 
               {/* Mockup do Produto */}
-              <div className="relative w-full h-48 mb-6 bg-gradient-to-br from-blue-500/10 to-blue-600/10 rounded-xl flex items-center justify-center border-2 border-blue-200 dark:border-blue-800">
+              <div className="relative w-full h-32 sm:h-40 mb-4 bg-gradient-to-br from-blue-500/10 to-blue-600/10 rounded-xl flex items-center justify-center border-2 border-blue-200 dark:border-blue-800">
                 <div className="flex -space-x-4">
-                  <FileText className="w-24 h-24 text-blue-500 opacity-60" />
-                  <Presentation className="w-24 h-24 text-blue-500 opacity-60" />
+                  <FileText className="w-16 h-16 sm:w-20 sm:h-20 text-blue-500 opacity-60" />
+                  <Presentation className="w-16 h-16 sm:w-20 sm:h-20 text-blue-500 opacity-60" />
                 </div>
               </div>
 
-              <div className="flex items-center justify-center gap-3 mb-3">
-                <h3 className="text-2xl md:text-3xl font-bold">Pack Office Premium</h3>
+              <div className="flex items-center justify-center gap-3 mb-2">
+                <h3 className="text-xl sm:text-2xl md:text-3xl font-bold">Pack Office Premium</h3>
               </div>
-              <p className="text-muted-foreground mb-6">Templates Word + Slides PowerPoint + Bônus</p>
-              <div className="space-y-2">
-                <p className="text-sm text-muted-foreground line-through">De R$ 3.997,00</p>
-                <p className="text-5xl md:text-6xl font-bold" style={{ color: "#3B82F6" }}>
+              <p className="text-sm sm:text-base text-muted-foreground mb-4">Templates Word + Slides PowerPoint + Bônus</p>
+              <div className="space-y-1">
+                <p className="text-xs sm:text-sm text-muted-foreground line-through">De R$ 3.997,00</p>
+                <p className="text-4xl sm:text-5xl md:text-6xl font-bold" style={{ color: "#3B82F6" }}>
                   R$ 29,99
                 </p>
-                <p className="text-sm text-muted-foreground">
+                <p className="text-xs sm:text-sm text-muted-foreground">
                   pagamento único •{" "}
                   <span className="font-bold" style={{ color: "#3B82F6" }}>
                     94% OFF
@@ -242,86 +220,64 @@ const Offers = () => {
                 </p>
               </div>
             </CardHeader>
-            <CardContent className="space-y-6 pb-8">
-              <div className="p-4 bg-amber-500/10 border border-amber-500/30 rounded-lg mb-4">
-                <p className="text-sm font-bold text-amber-600 text-center">
+            <CardContent className="space-y-4 pb-6">
+              <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg mb-3">
+                <p className="text-xs sm:text-sm font-bold text-amber-600 text-center">
                   💎 UPGRADE COMPLETO: Tudo do Pack 1 + Muito Mais!
                 </p>
               </div>
 
               {/* Benefícios Principais - Checkmarks Azuis */}
-              <div className="space-y-4">
-                <div className="flex items-start gap-3">
-                  <Check className="w-6 h-6 flex-shrink-0 mt-0.5" style={{ color: "#3B82F6" }} />
-                  <span className="text-sm md:text-base">
+              <div className="space-y-3">
+                <div className="flex items-start gap-2">
+                  <Check className="w-5 h-5 sm:w-6 sm:h-6 flex-shrink-0 mt-0.5" style={{ color: "#3B82F6" }} />
+                  <span className="text-xs sm:text-sm md:text-base">
                     <strong className="font-bold">✅ TUDO do Pack Excel</strong> + (13.000 planilhas + dashboards)
                   </span>
                 </div>
-                <div className="flex items-start gap-3">
-                  <Check className="w-6 h-6 flex-shrink-0 mt-0.5" style={{ color: "#3B82F6" }} />
-                  <span className="text-sm md:text-base">
+                <div className="flex items-start gap-2">
+                  <Check className="w-5 h-5 sm:w-6 sm:h-6 flex-shrink-0 mt-0.5" style={{ color: "#3B82F6" }} />
+                  <span className="text-xs sm:text-sm md:text-base">
                     <strong className="font-bold">+2.000 Templates Word</strong> profissionais (contratos, propostas,
                     relatórios)
                   </span>
                 </div>
-                <div className="flex items-start gap-3">
-                  <Check className="w-6 h-6 flex-shrink-0 mt-0.5" style={{ color: "#3B82F6" }} />
-                  <span className="text-sm md:text-base">
+                <div className="flex items-start gap-2">
+                  <Check className="w-5 h-5 sm:w-6 sm:h-6 flex-shrink-0 mt-0.5" style={{ color: "#3B82F6" }} />
+                  <span className="text-xs sm:text-sm md:text-base">
                     <strong className="font-bold">+50.000 Slides PowerPoint</strong> para apresentações impactantes
                   </span>
                 </div>
-                <div className="flex items-start gap-3">
-                  <Check className="w-6 h-6 flex-shrink-0 mt-0.5" style={{ color: "#3B82F6" }} />
-                  <span className="text-sm md:text-base">
+                <div className="flex items-start gap-2">
+                  <Check className="w-5 h-5 sm:w-6 sm:h-6 flex-shrink-0 mt-0.5" style={{ color: "#3B82F6" }} />
+                  <span className="text-xs sm:text-sm md:text-base">
                     <strong className="font-bold">+6.000 planilhas Excel extras exclusivas</strong>
                   </span>
                 </div>
-                <div className="flex items-start gap-3">
-                  <Check className="w-6 h-6 flex-shrink-0 mt-0.5" style={{ color: "#3B82F6" }} />
-                  <span className="text-sm md:text-base">Acesso vitalício a TUDO</span>
+                <div className="flex items-start gap-2">
+                  <Check className="w-5 h-5 sm:w-6 sm:h-6 flex-shrink-0 mt-0.5" style={{ color: "#3B82F6" }} />
+                  <span className="text-xs sm:text-sm md:text-base">Acesso vitalício a TUDO</span>
                 </div>
-                <div className="flex items-start gap-3">
-                  <Check className="w-6 h-6 flex-shrink-0 mt-0.5" style={{ color: "#3B82F6" }} />
-                  <span className="text-sm md:text-base">Suporte prioritário</span>
-                </div>
-              </div>
-
-              {/* Seção de Bônus */}
-              <div className="border-t-2 border-muted pt-6 mt-6">
-                <h4 className="text-2xl font-black mb-6 text-center" style={{ color: "#EF4444" }}>
-                  10 BÔNUS EXCLUSIVOS
-                </h4>
-                <div className="space-y-3">
-                  {bonusList.map((bonus, index) => (
-                    <div key={index} className="flex items-start gap-3">
-                      <div className="flex-shrink-0 mt-0.5" style={{ color: "#3B82F6" }}>
-                        {bonus.icon}
-                      </div>
-                      <span className="text-sm">
-                        <strong className="font-bold" style={{ color: "#3B82F6" }}>
-                          {bonus.title}
-                        </strong>{" "}
-                        {bonus.description}
-                      </span>
-                    </div>
-                  ))}
+                <div className="flex items-start gap-2">
+                  <Check className="w-5 h-5 sm:w-6 sm:h-6 flex-shrink-0 mt-0.5" style={{ color: "#3B82F6" }} />
+                  <span className="text-xs sm:text-sm md:text-base">Suporte prioritário</span>
                 </div>
               </div>
 
               <div className="p-3 bg-blue-500/10 border border-blue-500/30 rounded-lg">
-                <p className="text-sm font-bold text-center">
+                <p className="text-xs sm:text-sm font-bold text-center">
                   💰 Economia Total:{" "}
-                  <span className="text-xl" style={{ color: "#3B82F6" }}>
+                  <span className="text-lg sm:text-xl" style={{ color: "#3B82F6" }}>
                     R$ 3.967
                   </span>
                 </p>
-                <p className="text-xs text-center text-muted-foreground mt-1">
+                <p className="text-[10px] sm:text-xs text-center text-muted-foreground mt-1">
                   Mais de 60.000 arquivos por menos de R$ 0,001 cada!
                 </p>
               </div>
               <Button
                 size="lg"
-                className="w-full text-lg py-6 shadow-lg hover:shadow-xl transition-all duration-300"
+                className="w-full text-base sm:text-lg py-5 sm:py-6 shadow-lg hover:shadow-xl transition-all duration-300"
                 style={{
                   background: "linear-gradient(135deg, #3B82F6, #2563EB)",
                   color: "white",
@@ -330,7 +286,7 @@ const Offers = () => {
               >
                 Quero o Pacote Completo - R$ 29,99
               </Button>
-              <p className="text-xs text-center text-muted-foreground">
+              <p className="text-[10px] sm:text-xs text-center text-muted-foreground">
                 ⚡ Melhor custo-benefício: Mais de 60.000 arquivos!
               </p>
             </CardContent>
@@ -338,10 +294,10 @@ const Offers = () => {
         </div>
 
         {/* Garantia */}
-        <div className="mt-12 text-center max-w-3xl mx-auto">
-          <div className="p-6 bg-primary/10 border-2 border-primary/30 rounded-2xl">
-            <p className="text-lg font-bold mb-2">🛡️ Garantia de 7 Dias</p>
-            <p className="text-sm text-muted-foreground">
+        <div className="mt-8 sm:mt-12 text-center max-w-3xl mx-auto">
+          <div className="p-4 sm:p-6 bg-primary/10 border-2 border-primary/30 rounded-2xl">
+            <p className="text-base sm:text-lg font-bold mb-2">🛡️ Garantia de 7 Dias</p>
+            <p className="text-xs sm:text-sm text-muted-foreground">
               Se você não ficar completamente satisfeito, devolvemos 100% do seu dinheiro. Sem perguntas, sem
               burocracia.
             </p>
