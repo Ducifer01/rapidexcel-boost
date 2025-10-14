@@ -46,34 +46,33 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    // Validar que Pack 2 não vem sozinho
-    if (product_ids.length === 1 && product_ids[0] === 'pack_2') {
-      if (authenticated_user_id) {
-        // Usuário autenticado: verificar se já possui pack_1
-        logStep('Verificando acesso ao pack_1 para compra do pack_2', { userId: authenticated_user_id });
-        
-        const { data: hasPack1, error: accessError } = await supabase
-          .rpc('user_has_product_access', {
-            _user_id: authenticated_user_id,
-            _product_name: 'Pack Excel Completo Pro - 13.000 Planilhas'
-          });
-        
-        if (accessError) {
-          logStep('ERRO ao verificar acesso ao pack_1', accessError);
-          throw new Error('Erro ao verificar produtos existentes');
-        }
-        
-        if (!hasPack1) {
-          logStep('Usuário não possui pack_1', { userId: authenticated_user_id });
-          throw new Error('Para comprar o Pack Office Premium, você precisa primeiro adquirir o Pack Excel Completo Pro');
-        }
-        
-        logStep('Usuário possui pack_1, permitindo compra do pack_2', { userId: authenticated_user_id });
-      } else {
-        // Checkout público: bloquear completamente
-        logStep('Tentativa de compra do pack_2 sozinho em checkout público');
-        throw new Error('Pack 2 só pode ser comprado junto com Pack 1');
+    // Validar que Pack 2 não vem sozinho (apenas em checkout público COM dados de payer)
+    if (product_ids.length === 1 && product_ids[0] === 'pack_2' && !authenticated_user_id && payer) {
+      logStep('Tentativa de compra do pack_2 sozinho em checkout público');
+      throw new Error('Pack 2 só pode ser comprado junto com Pack 1');
+    }
+    
+    // Se usuário autenticado tenta comprar pack_2 sozinho, verificar se tem pack_1
+    if (product_ids.length === 1 && product_ids[0] === 'pack_2' && authenticated_user_id) {
+      logStep('Verificando acesso ao pack_1 para compra do pack_2', { userId: authenticated_user_id });
+      
+      const { data: hasPack1, error: accessError } = await supabase
+        .rpc('user_has_product_access', {
+          _user_id: authenticated_user_id,
+          _product_name: 'Pack Excel Completo Pro - 13.000 Planilhas'
+        });
+      
+      if (accessError) {
+        logStep('ERRO ao verificar acesso ao pack_1', accessError);
+        throw new Error('Erro ao verificar produtos existentes');
       }
+      
+      if (!hasPack1) {
+        logStep('Usuário não possui pack_1', { userId: authenticated_user_id });
+        throw new Error('Para comprar o Pack Office Premium, você precisa primeiro adquirir o Pack Excel Completo Pro');
+      }
+      
+      logStep('Usuário possui pack_1, permitindo compra do pack_2', { userId: authenticated_user_id });
     }
 
     // Construir items com preços SEGUROS do servidor
@@ -100,9 +99,7 @@ serve(async (req) => {
       throw new Error('MercadoPago Access Token não configurado');
     }
 
-    // Determinar o fluxo: com ou sem dados de usuário
-    const isAnonymousCheckout = !payer && !authenticated_user_id;
-
+    // Determinar tipo de checkout
     let authUserId: string | null = null;
     let userEmail: string = '';
     let userName: string = '';
@@ -113,7 +110,6 @@ serve(async (req) => {
       logStep('Compra de usuário autenticado', { userId: authenticated_user_id });
       authUserId = authenticated_user_id;
       
-      // Buscar dados do usuário
       const { data: userData, error: userError } = await supabase.auth.admin.getUserById(authenticated_user_id);
       
       if (userError || !userData.user) {
@@ -126,7 +122,7 @@ serve(async (req) => {
       
       logStep('Dados do usuário carregados', { email: userEmail, name: userName });
     } else if (payer && password) {
-      // Fluxo de checkout público com dados completos (usuário novo)
+      // Fluxo de checkout público com dados completos (criar novo usuário)
       if (!payer.email || !payer.name) {
         throw new Error('Dados do comprador incompletos');
       }
@@ -166,12 +162,13 @@ serve(async (req) => {
       if (!authUserId) {
         throw new Error('Não foi possível obter ID do usuário');
       }
-    } else if (!isAnonymousCheckout) {
-      // Se não é anônimo mas faltam dados
-      throw new Error('Dados incompletos para criar preferência');
+    } else {
+      // Checkout anônimo - criar preferência sem dados de usuário
+      // O Brick vai coletar os dados depois
+      logStep('Checkout anônimo - preferência sem payer');
     }
 
-    // 2. REGISTRAR COMPRA (anônima ou com auth_user_id)
+    // Registrar compra (anônima ou com auth_user_id)
     const totalAmount = items.reduce((sum: number, item: any) => sum + (item.unit_price * item.quantity), 0);
     
     const purchaseData: any = {
@@ -201,7 +198,7 @@ serve(async (req) => {
 
     logStep('Compra registrada com sucesso', { purchaseId: purchase.id });
 
-    // 3. GERAR TOKENS DE AUTENTICAÇÃO (apenas para novos usuários)
+    // Gerar tokens de autenticação (apenas para novos usuários)
     let authTokens = null;
     if (newUser && password) {
       logStep('Gerando tokens de autenticação', { userId: authUserId });
@@ -222,7 +219,7 @@ serve(async (req) => {
       }
     }
 
-    // 4. CRIAR PREFERÊNCIA NO MERCADOPAGO
+    // Criar preferência no MercadoPago
     const preferenceData: any = {
       items,
       back_urls: back_urls || {
