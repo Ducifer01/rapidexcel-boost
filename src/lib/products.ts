@@ -22,12 +22,12 @@ export const PRODUCTS: Product[] = [
   {
     id: 'pack_2',
     name: 'Pack Office Premium - Templates Word + Slides PowerPoint',
-    description: 'Upgrade completo: +2.000 templates Word profissionais + 50.000 slides PowerPoint para apresentações + BÔNUS: 6.000 planilhas Excel extras + materiais exclusivos',
-    price: 39.99,
+    description: 'Upgrade completo: +2.000 templates Word + 50.000 slides PowerPoint + BÔNUS: 6.000 planilhas Excel extras',
+    price: 29.99,
     originalPrice: 3997,
     isUpsell: true,
     requiredProducts: ['pack_1'],
-    savings: 3957.01,
+    savings: 3967.01,
   },
 ];
 
