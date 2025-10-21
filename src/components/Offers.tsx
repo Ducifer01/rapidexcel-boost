@@ -100,14 +100,14 @@ const Offers = () => {
               </div>
               <p className="text-sm sm:text-base text-muted-foreground mb-4">13.000 Planilhas Excel Profissionais</p>
               <div className="space-y-1">
-                <p className="text-xs sm:text-sm text-muted-foreground line-through">De R$ 1.997,00</p>
+                <p className="text-xs sm:text-sm text-muted-foreground line-through">De R$ 99,99</p>
                 <p className="text-4xl sm:text-5xl md:text-6xl font-bold" style={{ color: "#22C55E" }}>
                   R$ 12,99
                 </p>
                 <p className="text-xs sm:text-sm text-muted-foreground">
                   pagamento único •{" "}
                   <span className="font-bold" style={{ color: "#22C55E" }}>
-                    93% OFF
+                    87% OFF
                   </span>
                 </p>
               </div>
@@ -170,14 +170,14 @@ const Offers = () => {
               </div>
               <p className="text-sm sm:text-base text-muted-foreground mb-4">Templates Word + Slides PowerPoint + Bônus</p>
               <div className="space-y-1">
-                <p className="text-xs sm:text-sm text-muted-foreground line-through">De R$ 3.997,00</p>
+                <p className="text-xs sm:text-sm text-muted-foreground line-through">De R$ 299,99</p>
                 <p className="text-4xl sm:text-5xl md:text-6xl font-bold" style={{ color: "#3B82F6" }}>
                   R$ 39,99
                 </p>
                 <p className="text-xs sm:text-sm text-muted-foreground">
                   pagamento único •{" "}
                   <span className="font-bold" style={{ color: "#3B82F6" }}>
-                    99% OFF
+                    87% OFF
                   </span>
                 </p>
               </div>
@@ -230,7 +230,7 @@ const Offers = () => {
                 <p className="text-xs sm:text-sm font-bold text-center">
                   💰 Economia Total:{" "}
                   <span className="text-lg sm:text-xl" style={{ color: "#3B82F6" }}>
-                    R$ 3.957
+                    R$ 347
                   </span>
                 </p>
                 <p className="text-[10px] sm:text-xs text-center text-muted-foreground mt-1">
@@ -244,7 +244,7 @@ const Offers = () => {
                   background: "linear-gradient(135deg, #3B82F6, #2563EB)",
                   color: "white",
                 }}
-                onClick={() => navigate("/checkout")}
+                onClick={() => navigate("/checkout", { state: { preSelectPack2: true } })}
               >
                 Pacote Completo - R$ 39,99
               </Button>

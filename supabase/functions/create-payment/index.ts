@@ -72,7 +72,7 @@ const VALID_PRODUCTS = {
   },
   'pack_2': { 
     title: 'Pack Office Premium - Templates Word + Slides PowerPoint', 
-    price: 29.99,
+    price: 39.99,
     description: 'Upgrade completo: +2.000 templates Word + 50.000 slides PowerPoint + BÔNUS: 6.000 planilhas Excel extras'
   },
 };

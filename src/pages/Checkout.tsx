@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -19,13 +19,17 @@ import { useFacebookPixel } from '@/hooks/useFacebookPixel';
 
 const Checkout = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const { trackEvent } = useFacebookPixel();
   
   // Step 1: Seleção de produtos
-  const [selectedProducts, setSelectedProducts] = useState<string[]>(['pack_1']);
-  const [includeUpsell, setIncludeUpsell] = useState(false);
+  const preSelectPack2 = location.state?.preSelectPack2 || false;
+  const [selectedProducts, setSelectedProducts] = useState<string[]>(
+    preSelectPack2 ? ['pack_1', 'pack_2'] : ['pack_1']
+  );
+  const [includeUpsell, setIncludeUpsell] = useState(preSelectPack2);
 
   // Step 2: Dados do comprador
   const [formData, setFormData] = useState({
