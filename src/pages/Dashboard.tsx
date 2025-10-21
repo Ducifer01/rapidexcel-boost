@@ -173,9 +173,29 @@ const Dashboard = () => {
     .filter(p => p.payment_status === 'approved')
     .flatMap(p => p.products);
 
-  const missingProducts = PRODUCTS.filter(
-    product => !userProducts.some(up => up.includes(product.name.split(' ')[0]) || up.includes(product.id))
-  );
+  // Verifica quais product IDs o usuário já possui
+  const userProductIds = PRODUCTS
+    .filter(product => userProducts.some(up => up.includes(product.name.split(' ')[0]) || up.includes(product.id)))
+    .map(product => product.id);
+
+  // Filtra produtos que o usuário não tem E que pode comprar (verificando requiredProducts)
+  const missingProducts = PRODUCTS.filter(product => {
+    // Verifica se o usuário já tem este produto
+    const hasProduct = userProducts.some(up => up.includes(product.name.split(' ')[0]) || up.includes(product.id));
+    if (hasProduct) return false;
+
+    // Verifica se o produto tem requisitos
+    if (product.requiredProducts && product.requiredProducts.length > 0) {
+      // Verifica se o usuário tem TODOS os produtos requeridos
+      const hasAllRequiredProducts = product.requiredProducts.every(reqId => 
+        userProductIds.includes(reqId)
+      );
+      return hasAllRequiredProducts;
+    }
+
+    // Se não tem requisitos, pode mostrar
+    return true;
+  });
 
   if (loading) {
     return (
