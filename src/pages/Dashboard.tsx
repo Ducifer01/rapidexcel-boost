@@ -175,13 +175,13 @@ const Dashboard = () => {
 
   // Verifica quais product IDs o usuário já possui
   const userProductIds = PRODUCTS
-    .filter(product => userProducts.some(up => up.includes(product.name.split(' ')[0]) || up.includes(product.id)))
+    .filter(product => userProducts.some(up => up === product.name || up === product.id))
     .map(product => product.id);
 
   // Filtra produtos que o usuário não tem E que pode comprar (verificando requiredProducts)
   const missingProducts = PRODUCTS.filter(product => {
     // Verifica se o usuário já tem este produto
-    const hasProduct = userProducts.some(up => up.includes(product.name.split(' ')[0]) || up.includes(product.id));
+    const hasProduct = userProducts.some(up => up === product.name || up === product.id);
     if (hasProduct) return false;
 
     // Verifica se o produto tem requisitos
