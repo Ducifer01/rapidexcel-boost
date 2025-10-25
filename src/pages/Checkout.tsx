@@ -199,8 +199,26 @@ const Checkout = () => {
 
       if (error) throw error;
 
+      // AUTENTICAR O USUÁRIO AUTOMATICAMENTE ANTES DE REDIRECIONAR
       if (data?.auth_tokens) {
-        localStorage.setItem('pending_auth_tokens', JSON.stringify(data.auth_tokens));
+        try {
+          const { error: authError } = await supabase.auth.setSession({
+            access_token: data.auth_tokens.access_token,
+            refresh_token: data.auth_tokens.refresh_token,
+          });
+
+          if (authError) {
+            console.error('Erro ao autenticar usuário:', authError);
+            // Salvar tokens para tentar login depois
+            localStorage.setItem('pending_auth_tokens', JSON.stringify(data.auth_tokens));
+          } else {
+            // Usuário autenticado com sucesso!
+            console.log('✅ Usuário autenticado automaticamente');
+          }
+        } catch (authError) {
+          console.error('Erro ao processar autenticação:', authError);
+          localStorage.setItem('pending_auth_tokens', JSON.stringify(data.auth_tokens));
+        }
       }
 
       // Salvar dados da compra para o evento Purchase do Facebook Pixel
