@@ -18,11 +18,11 @@ const PayerSchema = z.object({
   identification: z.object({
     type: z.literal('CPF'),
     number: z.string().regex(/^\d{11}$/, 'CPF deve conter 11 dígitos')
-  }),
+  }).optional(),
   phone: z.object({
     area_code: z.string().regex(/^\d{2}$/, 'DDD deve conter 2 dígitos'),
     number: z.string().regex(/^\d{8,9}$/, 'Telefone deve conter 8 ou 9 dígitos')
-  })
+  }).optional()
 });
 
 const PasswordSchema = z.string()
@@ -296,9 +296,15 @@ serve(async (req) => {
       preferenceData.payer = {
         email: payer.email,
         name: payer.name,
-        identification: payer.identification,
-        phone: payer.phone,
       };
+      
+      // Adicionar identificação e telefone apenas se fornecidos
+      if (payer.identification) {
+        preferenceData.payer.identification = payer.identification;
+      }
+      if (payer.phone) {
+        preferenceData.payer.phone = payer.phone;
+      }
     }
 
     logStep('Enviando para MercadoPago', { url: 'https://api.mercadopago.com/checkout/preferences', purchaseId: purchase.id, has_payer: !!preferenceData.payer });

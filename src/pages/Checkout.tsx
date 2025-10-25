@@ -13,7 +13,7 @@ import { ViewCounter } from '@/components/checkout/ViewCounter';
 import { TrustBadges } from '@/components/checkout/TrustBadges';
 import { MiniTestimonials } from '@/components/checkout/MiniTestimonials';
 import { UpsellModal } from '@/components/checkout/UpsellModal';
-import { formatCPF, validateCPF } from '@/lib/cpf-utils';
+
 import { ArrowLeft, ArrowRight, Check, Loader2, Sparkles, TrendingUp, Info } from 'lucide-react';
 import { useFacebookPixel } from '@/hooks/useFacebookPixel';
 
@@ -37,8 +37,6 @@ const Checkout = () => {
     email: '',
     password: '',
     confirmPassword: '',
-    cpf: '',
-    phone: '',
   });
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [showUpsellModal, setShowUpsellModal] = useState(false);
@@ -108,14 +106,6 @@ const Checkout = () => {
 
     if (formData.password !== formData.confirmPassword) {
       errors.confirmPassword = 'Senhas não coincidem';
-    }
-
-    if (!formData.cpf || !validateCPF(formData.cpf)) {
-      errors.cpf = 'CPF inválido';
-    }
-
-    if (!formData.phone || formData.phone.replace(/\D/g, '').length < 10) {
-      errors.phone = 'Telefone obrigatório (mínimo 10 dígitos)';
     }
 
     setFormErrors(errors);
@@ -192,14 +182,6 @@ const Checkout = () => {
       const payer = {
         name: formData.name,
         email: formData.email,
-        identification: {
-          type: 'CPF',
-          number: formData.cpf.replace(/\D/g, ''),
-        },
-        phone: {
-          area_code: formData.phone.replace(/\D/g, '').substring(0, 2),
-          number: formData.phone.replace(/\D/g, '').substring(2),
-        },
       };
 
       const { data, error } = await supabase.functions.invoke('create-payment', {
@@ -466,43 +448,6 @@ const Checkout = () => {
                       </div>
                     </div>
 
-                    <div className="space-y-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="cpf" className="text-sm sm:text-base">CPF *</Label>
-                        <Input
-                          id="cpf"
-                          value={formData.cpf}
-                          onChange={(e) => setFormData({ ...formData, cpf: formatCPF(e.target.value) })}
-                          placeholder="000.000.000-00"
-                          maxLength={14}
-                          inputMode="numeric"
-                          className={`h-12 sm:h-11 text-base ${formErrors.cpf ? 'border-destructive' : ''}`}
-                        />
-                        {formErrors.cpf && (
-                          <p className="text-xs sm:text-sm text-destructive">{formErrors.cpf}</p>
-                        )}
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label htmlFor="phone" className="text-sm sm:text-base">Whatsapp *</Label>
-                        <Input
-                          id="phone"
-                          value={formData.phone}
-                          onChange={(e) => {
-                            const value = e.target.value.replace(/\D/g, '');
-                            const formatted = value.replace(/(\d{2})(\d{5})(\d{4})/, '($1) $2-$3');
-                            setFormData({ ...formData, phone: formatted });
-                          }}
-                          placeholder="(00) 00000-0000"
-                          maxLength={15}
-                          inputMode="tel"
-                          className={`h-12 sm:h-11 text-base ${formErrors.phone ? 'border-destructive' : ''}`}
-                        />
-                        {formErrors.phone && (
-                          <p className="text-xs sm:text-sm text-destructive">{formErrors.phone}</p>
-                        )}
-                      </div>
-                    </div>
                   </CardContent>
                 </Card>
 
