@@ -3,10 +3,12 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Clock, Mail } from "lucide-react";
+import { useFacebookPixel } from "@/hooks/useFacebookPixel";
 
 const Pending = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { trackEvent } = useFacebookPixel();
 
   // Se o Mercado Pago retornar "approved" por querystring, redireciona para /success
   useEffect(() => {
@@ -16,6 +18,49 @@ const Pending = () => {
       navigate(`/success${location.search}`, { replace: true });
     }
   }, [location.search, navigate]);
+
+  // Facebook Pixel: Purchase na tela Pending
+  useEffect(() => {
+    try {
+      const purchaseDataStr = localStorage.getItem('checkout_purchase_data');
+      if (purchaseDataStr) {
+        const purchaseData = JSON.parse(purchaseDataStr);
+        const productIds = purchaseData.products || [];
+        const totalValue = purchaseData.total || 0;
+
+        // Advanced Matching: informar email ao Pixel, se disponível
+        try {
+          const userDataStr = localStorage.getItem('checkout_user_data');
+          if (userDataStr && typeof window !== 'undefined' && (window as any).fbq) {
+            const userData = JSON.parse(userDataStr);
+            if (userData?.email) {
+              (window as any).fbq('init', '2708262289551049', {
+                em: userData.email,
+                external_id: userData.email,
+              });
+            }
+          }
+        } catch (_) {}
+
+        // Facebook Pixel: Purchase (conversão finalizada)
+        trackEvent('Purchase', {
+          content_ids: productIds,
+          content_name: 'Planilhas Excel Pro',
+          content_type: 'product',
+          value: totalValue,
+          currency: 'BRL',
+          transaction_id: new Date().getTime().toString(),
+          predicted_ltv: totalValue * 3
+        });
+        
+        // Limpar dados sensíveis do checkout
+        localStorage.removeItem('checkout_user_data');
+        localStorage.removeItem('checkout_purchase_data');
+      }
+    } catch (error) {
+      console.error('Erro ao processar evento Purchase:', error);
+    }
+  }, [trackEvent]);
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center px-4 py-12">
