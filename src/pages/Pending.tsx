@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Clock, Mail } from "lucide-react";
 import { useFacebookPixel } from "@/hooks/useFacebookPixel";
+import { supabase } from "@/integrations/supabase/client";
 
 const Pending = () => {
   const navigate = useNavigate();
@@ -19,48 +20,110 @@ const Pending = () => {
     }
   }, [location.search, navigate]);
 
-  // Facebook Pixel: Purchase na tela Pending
+  // Garantir autenticação (usando tokens pendentes) ao entrar no Pending
+  useEffect(() => {
+    (async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) {
+          const tokensStr = localStorage.getItem('pending_auth_tokens');
+          if (tokensStr) {
+            const tokens = JSON.parse(tokensStr);
+            await supabase.auth.setSession({
+              access_token: tokens.access_token,
+              refresh_token: tokens.refresh_token,
+            });
+          }
+        }
+      } catch (e) {
+        console.error('Erro ao garantir sessão no Pending:', e);
+      }
+    })();
+  }, []);
+
+  // Polling de status no banco usando external_reference
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const externalRef = params.get('external_reference');
+    if (!externalRef) return;
+
+    let interval: number | undefined;
+    const checkStatus = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('purchases')
+          .select('payment_status')
+          .eq('id', externalRef)
+          .single();
+        if (!error && data?.payment_status === 'approved') {
+          navigate(`/success${location.search}`, { replace: true });
+        }
+      } catch (e) {
+        // Silenciar para tentar novamente no próximo ciclo
+      }
+    };
+
+    // Checar imediatamente e agendar polling
+    checkStatus();
+    interval = window.setInterval(checkStatus, 5000);
+
+    return () => {
+      if (interval) window.clearInterval(interval);
+    };
+  }, [location.search, navigate]);
+
+  // Facebook Pixel: Purchase na tela Pending (disparar uma única vez)
   useEffect(() => {
     try {
+      // Evitar disparos duplicados
+      if (localStorage.getItem('purchase_event_fired') === 'true') return;
+
       const purchaseDataStr = localStorage.getItem('checkout_purchase_data');
-      if (purchaseDataStr) {
-        const purchaseData = JSON.parse(purchaseDataStr);
-        const productIds = purchaseData.products || [];
-        const totalValue = purchaseData.total || 0;
+      if (!purchaseDataStr) return;
 
-        // Advanced Matching: informar email ao Pixel, se disponível
-        try {
-          const userDataStr = localStorage.getItem('checkout_user_data');
-          if (userDataStr && typeof window !== 'undefined' && (window as any).fbq) {
-            const userData = JSON.parse(userDataStr);
-            if (userData?.email) {
-              (window as any).fbq('init', '2708262289551049', {
-                em: userData.email,
-                external_id: userData.email,
-              });
-            }
+      const purchaseData = JSON.parse(purchaseDataStr);
+      const productIds = purchaseData.products || [];
+      const totalValue = purchaseData.total || 0;
+
+      // Usar external_reference da URL como transaction_id
+      const params = new URLSearchParams(location.search);
+      const transactionId = params.get('external_reference') || String(Date.now());
+
+      // Advanced Matching: informar email ao Pixel, se disponível
+      try {
+        const userDataStr = localStorage.getItem('checkout_user_data');
+        if (userDataStr && typeof window !== 'undefined' && (window as any).fbq) {
+          const userData = JSON.parse(userDataStr);
+          if (userData?.email) {
+            (window as any).fbq('init', '2708262289551049', {
+              em: userData.email,
+              external_id: userData.email,
+            });
           }
-        } catch (_) {}
+        }
+      } catch (_) {}
 
-        // Facebook Pixel: Purchase (conversão finalizada)
-        trackEvent('Purchase', {
-          content_ids: productIds,
-          content_name: 'Planilhas Excel Pro',
-          content_type: 'product',
-          value: totalValue,
-          currency: 'BRL',
-          transaction_id: new Date().getTime().toString(),
-          predicted_ltv: totalValue * 3
-        });
-        
-        // Limpar dados sensíveis do checkout
+      // Facebook Pixel: Purchase (conversão)
+      trackEvent('Purchase', {
+        content_ids: productIds,
+        content_name: 'Planilhas Excel Pro',
+        content_type: 'product',
+        value: totalValue,
+        currency: 'BRL',
+        transaction_id: transactionId,
+        predicted_ltv: totalValue * 3
+      });
+
+      // Marcar como disparado e limpar dados após breve atraso
+      localStorage.setItem('purchase_event_fired', 'true');
+      window.setTimeout(() => {
         localStorage.removeItem('checkout_user_data');
         localStorage.removeItem('checkout_purchase_data');
-      }
+      }, 15000);
     } catch (error) {
       console.error('Erro ao processar evento Purchase:', error);
     }
-  }, [trackEvent]);
+  }, [trackEvent, location.search]);
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center px-4 py-12">
