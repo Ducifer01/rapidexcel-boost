@@ -171,6 +171,21 @@ const Checkout = () => {
       currency: 'BRL'
     });
 
+    // Advanced Matching: informar email ao Pixel para melhor atribuição
+    try {
+      if (typeof window !== 'undefined' && (window as any).fbq) {
+        (window as any).fbq('init', '2708262289551049', {
+          em: formData.email,
+          external_id: formData.email,
+        });
+      }
+      // Guardar dados do comprador para o success
+      localStorage.setItem('checkout_user_data', JSON.stringify({
+        email: formData.email,
+        name: formData.name,
+      }));
+    } catch (_) {}
+
     setLoading(true);
 
     try {

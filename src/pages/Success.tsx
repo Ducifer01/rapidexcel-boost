@@ -55,6 +55,20 @@ const Success = () => {
           localStorage.removeItem('checkout_purchase_data');
         }
 
+        // Advanced Matching: informar email ao Pixel, se disponível
+        try {
+          const userDataStr = localStorage.getItem('checkout_user_data');
+          if (userDataStr && typeof window !== 'undefined' && (window as any).fbq) {
+            const userData = JSON.parse(userDataStr);
+            if (userData?.email) {
+              (window as any).fbq('init', '2708262289551049', {
+                em: userData.email,
+                external_id: userData.email,
+              });
+            }
+          }
+        } catch (_) {}
+
         // Facebook Pixel: Purchase (conversão finalizada)
         trackEvent('Purchase', {
           content_ids: productIds,
@@ -66,6 +80,9 @@ const Success = () => {
           transaction_id: new Date().getTime().toString(),
           predicted_ltv: totalValue * 3
         });
+        
+        // Limpar dados sensíveis do checkout
+        localStorage.removeItem('checkout_user_data');
 
         // Enviar evento de conversão para o Google Analytics se disponível
         if (typeof window !== 'undefined' && (window as any).gtag) {

@@ -1,9 +1,22 @@
-import { Link } from "react-router-dom";
+import { useEffect } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Clock, Mail } from "lucide-react";
 
 const Pending = () => {
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  // Se o Mercado Pago retornar "approved" por querystring, redireciona para /success
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const status = (params.get('status') || params.get('collection_status') || '').toLowerCase();
+    if (status === 'approved' || status === 'success' || status === 'approved_payment') {
+      navigate(`/success${location.search}`, { replace: true });
+    }
+  }, [location.search, navigate]);
+
   return (
     <div className="min-h-screen bg-background flex items-center justify-center px-4 py-12">
       <Card className="max-w-2xl w-full">
