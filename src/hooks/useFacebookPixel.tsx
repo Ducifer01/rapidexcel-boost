@@ -25,25 +25,40 @@ export const useFacebookPixel = () => {
           .select('key, value')
           .in('key', ['facebook_pixel_id', 'fb_pixel_enabled']);
 
+        let finalPixelId = '2708262289551049'; // Default fallback
+
         if (settings) {
           const pixelIdSetting = settings.find(s => s.key === 'facebook_pixel_id');
-          const enabledSetting = settings.find(s => s.key === 'fb_pixel_enabled');
-
-          const id = pixelIdSetting?.value;
-          const enabled = enabledSetting?.value === 'true';
-
-          setPixelId(id || null);
-          setIsEnabled(enabled && !!id);
-
-          // Inicializar o pixel se habilitado e ID disponível
-          if (enabled && id && window.fbq && !isInitialized) {
-            window.fbq('init', id);
-            window.fbq('track', 'PageView');
-            setIsInitialized(true);
+          const dbId = pixelIdSetting?.value;
+          
+          // Prioridade: banco → default
+          if (dbId && dbId.trim()) {
+            finalPixelId = dbId;
           }
+        }
+
+        setPixelId(finalPixelId);
+        const hasWindowFbq = typeof window !== 'undefined' && !!window.fbq;
+        setIsEnabled(hasWindowFbq);
+
+        // Inicializar o pixel se disponível e ainda não inicializado
+        if (hasWindowFbq && !isInitialized && finalPixelId) {
+          window.fbq('init', finalPixelId);
+          window.fbq('track', 'PageView');
+          setIsInitialized(true);
+          console.info('✅ Facebook Pixel initialized:', finalPixelId);
         }
       } catch (error) {
         console.error('Erro ao carregar configurações do Facebook Pixel:', error);
+        // Fallback mesmo com erro
+        const defaultId = '2708262289551049';
+        setPixelId(defaultId);
+        if (typeof window !== 'undefined' && window.fbq && !isInitialized) {
+          setIsEnabled(true);
+          window.fbq('init', defaultId);
+          window.fbq('track', 'PageView');
+          setIsInitialized(true);
+        }
       }
     };
 

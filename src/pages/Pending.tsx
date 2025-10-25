@@ -9,7 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 const Pending = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { trackEvent } = useFacebookPixel();
+  const { trackEvent, isEnabled } = useFacebookPixel();
 
   // Se o Mercado Pago retornar "approved" por querystring, redireciona para /success
   useEffect(() => {
@@ -76,7 +76,10 @@ const Pending = () => {
   useEffect(() => {
     try {
       // Evitar disparos duplicados
-      if (localStorage.getItem('purchase_event_fired') === 'true') return;
+      if (localStorage.getItem('purchase_event_fired') === 'true') {
+        console.info('Purchase event already fired, skipping');
+        return;
+      }
 
       const purchaseDataStr = localStorage.getItem('checkout_purchase_data');
       if (!purchaseDataStr) return;
@@ -89,22 +92,7 @@ const Pending = () => {
       const params = new URLSearchParams(location.search);
       const transactionId = params.get('external_reference') || String(Date.now());
 
-      // Advanced Matching: informar email ao Pixel, se disponível
-      try {
-        const userDataStr = localStorage.getItem('checkout_user_data');
-        if (userDataStr && typeof window !== 'undefined' && (window as any).fbq) {
-          const userData = JSON.parse(userDataStr);
-          if (userData?.email) {
-            (window as any).fbq('init', '2708262289551049', {
-              em: userData.email,
-              external_id: userData.email,
-            });
-          }
-        }
-      } catch (_) {}
-
-      // Facebook Pixel: Purchase (conversão)
-      trackEvent('Purchase', {
+      const purchaseParams = {
         content_ids: productIds,
         content_name: 'Planilhas Excel Pro',
         content_type: 'product',
@@ -112,18 +100,28 @@ const Pending = () => {
         currency: 'BRL',
         transaction_id: transactionId,
         predicted_ltv: totalValue * 3
-      });
+      };
 
-      // Marcar como disparado e limpar dados após breve atraso
+      // Tentar disparar via hook
+      if (isEnabled) {
+        trackEvent('Purchase', purchaseParams);
+        console.info('✅ Facebook Pixel Purchase fired via hook:', transactionId);
+      } else if (typeof window !== 'undefined' && (window as any).fbq) {
+        // Fallback: disparar diretamente
+        (window as any).fbq('track', 'Purchase', purchaseParams);
+        console.info('✅ Facebook Pixel Purchase fired via fbq fallback:', transactionId);
+      }
+
+      // Marcar como disparado e limpar dados após 60 segundos
       localStorage.setItem('purchase_event_fired', 'true');
       window.setTimeout(() => {
         localStorage.removeItem('checkout_user_data');
         localStorage.removeItem('checkout_purchase_data');
-      }, 15000);
+      }, 60000);
     } catch (error) {
       console.error('Erro ao processar evento Purchase:', error);
     }
-  }, [trackEvent, location.search]);
+  }, [trackEvent, isEnabled, location.search]);
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center px-4 py-12">

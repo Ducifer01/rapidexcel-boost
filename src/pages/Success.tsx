@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { CheckCircle2, Loader2 } from "lucide-react";
@@ -9,12 +9,15 @@ import { useFacebookPixel } from "@/hooks/useFacebookPixel";
 
 const Success = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [loading, setLoading] = useState(true);
   const [loggingIn, setLoggingIn] = useState(false);
-  const { trackEvent } = useFacebookPixel();
+  const { trackEvent, isEnabled } = useFacebookPixel();
 
   useEffect(() => {
     const handleAutoLogin = async () => {
+      let totalValue = 12.99; // Declare here for wider scope
+      
       try {
         // Verificar se há tokens pendentes do processo de checkout
         const pendingTokens = localStorage.getItem('pending_auth_tokens');
@@ -43,46 +46,55 @@ const Success = () => {
           }
         }
 
-        // Recuperar dados da compra do localStorage
-        const purchaseData = localStorage.getItem('checkout_purchase_data');
-        let totalValue = 12.99;
-        let productIds = ['pack_1'];
-        
-        if (purchaseData) {
-          const parsedData = JSON.parse(purchaseData);
-          totalValue = parsedData.total || 12.99;
-          productIds = parsedData.products || ['pack_1'];
-          localStorage.removeItem('checkout_purchase_data');
-        }
-
-        // Advanced Matching: informar email ao Pixel, se disponível
-        try {
-          const userDataStr = localStorage.getItem('checkout_user_data');
-          if (userDataStr && typeof window !== 'undefined' && (window as any).fbq) {
-            const userData = JSON.parse(userDataStr);
-            if (userData?.email) {
-              (window as any).fbq('init', '2708262289551049', {
-                em: userData.email,
-                external_id: userData.email,
-              });
-            }
+        // Evitar disparos duplicados do evento Purchase
+        if (localStorage.getItem('purchase_event_fired') === 'true') {
+          console.info('Purchase event already fired, skipping');
+        } else {
+          // Recuperar dados da compra do localStorage
+          const purchaseData = localStorage.getItem('checkout_purchase_data');
+          let productIds = ['pack_1'];
+          
+          if (purchaseData) {
+            const parsedData = JSON.parse(purchaseData);
+            totalValue = parsedData.total || 12.99;
+            productIds = parsedData.products || ['pack_1'];
           }
-        } catch (_) {}
 
-        // Facebook Pixel: Purchase (conversão finalizada)
-        trackEvent('Purchase', {
-          content_ids: productIds,
-          content_name: 'Pack Office Purchase',
-          content_type: 'product',
-          value: totalValue,
-          currency: 'BRL',
-          num_items: productIds.length,
-          transaction_id: new Date().getTime().toString(),
-          predicted_ltv: totalValue * 3
-        });
-        
-        // Limpar dados sensíveis do checkout
-        localStorage.removeItem('checkout_user_data');
+          // Usar external_reference da URL como transaction_id
+          const params = new URLSearchParams(location.search);
+          const transactionId = params.get('external_reference') || new Date().getTime().toString();
+
+          const purchaseParams = {
+            content_ids: productIds,
+            content_name: 'Planilhas Excel Pro',
+            content_type: 'product',
+            value: totalValue,
+            currency: 'BRL',
+            num_items: productIds.length,
+            transaction_id: transactionId,
+            predicted_ltv: totalValue * 3
+          };
+
+          // Tentar disparar via hook
+          if (isEnabled) {
+            trackEvent('Purchase', purchaseParams);
+            console.info('✅ Facebook Pixel Purchase fired via hook:', transactionId);
+          } else if (typeof window !== 'undefined' && (window as any).fbq) {
+            // Fallback: disparar diretamente
+            (window as any).fbq('track', 'Purchase', purchaseParams);
+            console.info('✅ Facebook Pixel Purchase fired via fbq fallback:', transactionId);
+          }
+
+          // Marcar como disparado
+          localStorage.setItem('purchase_event_fired', 'true');
+          
+          // Limpar dados após 60 segundos (garantir que o pixel processou)
+          setTimeout(() => {
+            localStorage.removeItem('checkout_user_data');
+            localStorage.removeItem('checkout_purchase_data');
+            localStorage.removeItem('purchase_event_fired');
+          }, 60000);
+        }
 
         // Enviar evento de conversão para o Google Analytics se disponível
         if (typeof window !== 'undefined' && (window as any).gtag) {
@@ -100,7 +112,7 @@ const Success = () => {
     };
 
     handleAutoLogin();
-  }, [navigate]);
+  }, [navigate, location.search, trackEvent, isEnabled]);
 
   if (loading) {
     return (
